@@ -61,6 +61,7 @@ void Game::InitWorld() {
 
 void Game::Reset() {
     InitWorld();
+    combatPres.Reset();
 }
 
 void Game::UpdateCamera() {
@@ -548,6 +549,9 @@ void Game::StartCombat(Enemy* enemy) {
     timer = 0.0f;
     combatRewardClaimed = false;
 
+    const int mapCol = enemy != nullptr ? static_cast<int>(enemy->body.x / TileMap::TILE) : 20;
+    combatPres.OnCombatStart(player, *enemy, mapCol);
+
     combatLog.clear();
     AddLog("Aparece un " + enemy->name + "!");
     AddLog("Que hara " + player.name + "?");
@@ -562,6 +566,10 @@ void Game::AddLog(const std::string& msg) {
 }
 
 void Game::UpdateCombat(float dt) {
+    if (currentEnemy != nullptr) {
+        combatPres.Update(dt, player, *currentEnemy);
+    }
+
     switch (phase) {
     case CombatPhase::PLAYER_TURN: {
         // Menu 2 x 2:
@@ -626,6 +634,7 @@ void Game::ExecutePlayerAction(PlayerAction action) {
     case PlayerAction::ATTACK: {
         const int dmg = player.CalculateDamage(*currentEnemy);
         currentEnemy->TakeDamage(dmg);
+        combatPres.TriggerPlayerAttack(dmg);
         AddLog(player.name + " ataca causando " + std::to_string(dmg) + " pts.");
 
         if (!currentEnemy->IsAlive()) {
@@ -651,6 +660,7 @@ void Game::ExecutePlayerAction(PlayerAction action) {
         );
 
         currentEnemy->TakeDamage(dmg);
+        combatPres.TriggerPlayerSkill(player.heroClass, dmg);
         AddLog(player.name + " usa " + player.GetSkillName() + "!");
         AddLog("Impacto critico por " + std::to_string(dmg) + " pts!");
 
@@ -676,6 +686,7 @@ void Game::ExecutePlayerAction(PlayerAction action) {
         }
 
         const int healed = player.UsePotion();
+        combatPres.TriggerPlayerHeal(healed);
         AddLog(player.name + " bebe una pocion.");
         AddLog("Recupera " + std::to_string(healed) + " pts de vida!");
 
@@ -689,6 +700,7 @@ void Game::ExecutePlayerAction(PlayerAction action) {
         const bool success = (GetRandomValue(1, 100) <= fleeChance);
 
         if (success) {
+            combatPres.Reset();
             AddLog(player.name + " logro escapar!");
             result = CombatResult::FLED;
             phase = CombatPhase::END_WAIT;
@@ -714,6 +726,7 @@ void Game::EnemyTurn() {
 
     const int dmg = currentEnemy->CalculateDamage(player);
     player.TakeDamage(dmg);
+    combatPres.TriggerEnemyAttack(currentEnemy->isBoss, dmg);
     AddLog(currentEnemy->name + " golpea causando " + std::to_string(dmg) + " pts!");
 
     if (!player.IsAlive()) {
@@ -883,7 +896,8 @@ void Game::DrawScene(GameState scene) {
                 combatLog,
                 selectedButton,
                 phase == CombatPhase::PLAYER_TURN,
-                hovered
+                hovered,
+                combatPres
             );
         }
         break;

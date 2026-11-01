@@ -36,6 +36,9 @@
     <ClInclude Include="CombatUI.h">
       <Filter>Vistas</Filter>
     </ClInclude>
+    <ClInclude Include="CombatPresentation.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
     <ClInclude Include="Game.h">
       <Filter>Controladores</Filter>
     </ClInclude>
@@ -63,6 +66,9 @@
       <Filter>Modelo</Filter>
     </ClCompile>
     <ClCompile Include="CombatUI.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="CombatPresentation.cpp">
       <Filter>Vistas</Filter>
     </ClCompile>
     <ClCompile Include="Game.cpp">

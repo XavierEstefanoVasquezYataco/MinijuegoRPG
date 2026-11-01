@@ -11,6 +11,7 @@
 #include "MapView.h"
 #include "TitleView.h"
 #include "DialogueView.h"
+#include "CombatPresentation.h"
 
 class Game {
 public:
@@ -46,6 +47,7 @@ private:
     MapView mapView;
     TitleView titleView;
     DialogueView dialogueView;
+    CombatPresentation combatPres;
 
     std::deque<std::string> combatLog;
     int selectedButton = 0;

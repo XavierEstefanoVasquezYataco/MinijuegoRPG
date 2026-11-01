@@ -1,8 +1,59 @@
 #include "Player.h"
+#include "PixelArt.h"
 #include <algorithm>
 #include <cmath>
 
-// ---------- Tabla de especies ----------
+// ---------- Tabla centralizada de arquetipos de héroes ----------
+static const HeroClassData HERO_TABLE[3] = {
+    {
+        HeroClass::WARRIOR,
+        "Guerrero",
+        120, 15, 18, 6,
+        180.0f,
+        "Golpe Fuerte",
+        10,
+        2.0f,
+        50, // 50% de probabilidad de huida
+        "Mayor salud y resistencia física con impacto cuerpo a cuerpo demoledor.",
+        "Ataque físico pesado con multiplicador x2.0",
+        ART_WARRIOR,
+        { 175, 185, 200, 255 }, { 235, 70, 70, 255 }
+    },
+    {
+        HeroClass::MAGE,
+        "Maga",
+        80, 40, 22, 2,
+        180.0f,
+        "Centella Arcana",
+        12,
+        2.2f,
+        50, // 50% de probabilidad de huida
+        "Amplia reserva de mana y poderoso daño magico a costa de menor vitalidad.",
+        "Descarga arcana concentrada con multiplicador x2.2",
+        ART_MAGE,
+        { 60, 80, 170, 255 }, { 170, 110, 240, 255 }
+    },
+    {
+        HeroClass::SCOUT,
+        "Exploradora",
+        100, 25, 20, 4,
+        207.0f, // +15% de velocidad en exploración
+        "Tiro Critico",
+        10,
+        1.9f,
+        65, // 65% de probabilidad de huida
+        "Atributos equilibrados, paso veloz en el mapa y mayor facilidad para escapar.",
+        "Disparo certero perforante con multiplicador x1.9",
+        ART_SCOUT,
+        { 55, 145, 75, 255 }, { 210, 170, 100, 255 }
+    }
+};
+
+const HeroClassData& GetHeroClassData(HeroClass type) {
+    return HERO_TABLE[static_cast<int>(type)];
+}
+
+// ---------- Tabla de especies de monstruos ----------
 const std::vector<MonsterSpecies>& GetSpecies() {
     static const std::vector<MonsterSpecies> table = {
         // marca nombre        nv  hp  atk def boss  gate art  color cuerpo        color claro
@@ -37,9 +88,43 @@ int Combatant::CalculateDamage(const Combatant& target, float multiplier) const 
 }
 
 // ---------- Player ----------
-Player::Player() : Combatant("Heroe", 100, 30, 14, 5) {
+Player::Player() : Combatant("Guerrero", 120, 15, 18, 6) {
     body.x = 2 * TileMap::TILE + 4;
     body.y = 8 * TileMap::TILE + 4;
+    InitClass(HeroClass::WARRIOR);
+}
+
+void Player::InitClass(HeroClass cls) {
+    heroClass = cls;
+    level = 1;
+    potions = 3;
+    const auto& data = GetHeroClassData(cls);
+    name = data.name;
+    maxHp = hp = data.hp;
+    maxMp = mp = data.mp;
+    atk = data.atk;
+    def = data.def;
+    speed = data.speed;
+}
+
+const char* Player::GetClassName() const {
+    return GetHeroClassData(heroClass).name;
+}
+
+const char* Player::GetSkillName() const {
+    return GetHeroClassData(heroClass).skillName;
+}
+
+int Player::GetSkillCost() const {
+    return GetHeroClassData(heroClass).skillCost;
+}
+
+float Player::GetSkillMultiplier() const {
+    return GetHeroClassData(heroClass).skillMultiplier;
+}
+
+int Player::GetFleeChance() const {
+    return GetHeroClassData(heroClass).fleeChance;
 }
 
 Vector2 Player::GetDesiredMove(Vector2 inputDir, float dt) const {
@@ -66,7 +151,7 @@ void Player::Update(Vector2 inputDir, float dt, const TileMap& map) {
 
 bool Player::UseSkillCost() {
     if (!CanUseSkill()) return false;
-    mp -= SKILL_COST;
+    mp -= GetSkillCost();
     return true;
 }
 
@@ -77,8 +162,18 @@ bool Player::UsePotion() {
     return true;
 }
 
-void Player::LevelUp() { ++level; maxHp += 15; maxMp += 5; atk += 3; def += 2; }
-void Player::FullRestore() { hp = maxHp; mp = maxMp; }
+void Player::LevelUp() {
+    ++level;
+    maxHp += 15;
+    maxMp += 5;
+    atk += 3;
+    def += 2;
+}
+
+void Player::FullRestore() {
+    hp = maxHp;
+    mp = maxMp;
+}
 
 // ---------- Enemy ----------
 Enemy::Enemy(const MonsterSpecies& sp, int col, int row)

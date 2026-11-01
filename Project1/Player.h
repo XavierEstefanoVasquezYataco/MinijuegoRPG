@@ -5,6 +5,25 @@
 #include "GameState.h"
 #include "TileMap.h"
 
+// Datos de presentacion y atributos base de cada clase de heroe (tabla centralizada)
+struct HeroClassData {
+    HeroClass type;
+    const char* name;
+    int hp, mp, atk, def;
+    float speed;
+    const char* skillName;
+    int skillCost;
+    float skillMultiplier;
+    int fleeChance;         // 50% Guerrero/Maga, 65% Exploradora
+    const char* description;
+    const char* skillEffect;
+    int artId;
+    Color bodyColor;
+    Color lightColor;
+};
+
+const HeroClassData& GetHeroClassData(HeroClass type);
+
 // Datos de cada especie de monstruo (se agregan en Player.cpp)
 struct MonsterSpecies {
     char marker;            // letra en el mapa
@@ -40,6 +59,7 @@ public:
 
 class Player : public Combatant {
 public:
+    HeroClass heroClass = HeroClass::WARRIOR;
     Rectangle body{ 0, 0, 24, 24 };
     float speed = 180.0f;
     int potions = 3;
@@ -48,17 +68,22 @@ public:
     bool moving = false;
     float animTimer = 0.0f;
 
-    static constexpr int SKILL_COST = 10;
-    static constexpr float SKILL_MULT = 1.8f;
     static constexpr int POTION_HEAL = 40;
 
     Player();
+    void InitClass(HeroClass cls);
+
+    const char* GetClassName() const;
+    const char* GetSkillName() const;
+    int GetSkillCost() const;
+    float GetSkillMultiplier() const;
+    int GetFleeChance() const;
 
     Vector2 GetDesiredMove(Vector2 inputDir, float dt) const;
     void Update(Vector2 inputDir, float dt, const TileMap& map);
     Vector2 Center() const { return { body.x + body.width / 2, body.y + body.height / 2 }; }
 
-    bool CanUseSkill() const { return mp >= SKILL_COST; }
+    bool CanUseSkill() const { return mp >= GetSkillCost(); }
     bool UseSkillCost();
     bool CanUsePotion() const { return potions > 0; }
     bool UsePotion();

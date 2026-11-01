@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Archivos de origen">
@@ -14,7 +14,7 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
     <Filter Include="Modelo">
-      <UniqueIdentifier>{b5a007a6-532d-4da1-bf0a-dc7506a1a181}</UniqueIdentifier>
+      <UniqueIdentifier>{9473b185-1d4e-4f01-90a6-103ae92d3596}</UniqueIdentifier>
     </Filter>
     <Filter Include="Vistas">
       <UniqueIdentifier>{a2d7eac2-7d23-48e2-b992-9c198f98d9ad}</UniqueIdentifier>
@@ -48,6 +48,9 @@
     <ClInclude Include="PixelArt.h">
       <Filter>Vistas</Filter>
     </ClInclude>
+    <ClInclude Include="TitleView.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Player.cpp">
@@ -69,6 +72,9 @@
       <Filter>Vistas</Filter>
     </ClCompile>
     <ClCompile Include="PixelArt.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="TitleView.cpp">
       <Filter>Vistas</Filter>
     </ClCompile>
   </ItemGroup>

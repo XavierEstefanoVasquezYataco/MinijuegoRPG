@@ -6,7 +6,7 @@
 static const char* PAUSE_LABELS[3] = {
     "Reanudar",
     "Reiniciar",
-    "Salir"
+    "Volver al Titulo"
 };
 
 void MapView::Load() {

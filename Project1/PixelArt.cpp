@@ -2,8 +2,8 @@
 #include <cstring>
 
 // Cada sprite: 12x12.  o=contorno  b=cuerpo  l=claro  w=blanco  r=rojo
-// h=pelo  s=piel  d=azul oscuro  .=transparente
-static const char* ART[6][12] = {
+// h=pelo/adorno  s=piel  d=azul/cuero  .=transparente
+static const char* ART[9][12] = {
     { // 0 BLOB
         "............",
         "............",
@@ -81,6 +81,45 @@ static const char* ART[6][12] = {
         "..obbbbbbo..",
         "..oddooddo..",
         "..odd..ddo..",
+        "..ooo..ooo.." },
+    { // 6 GUERRERO
+        "...orrrro...",
+        "..oobbbboo..",
+        "..obssssbo..",
+        "..obswwsbo..",
+        "...osssso...",
+        "..oobbbboo..",
+        ".obollllobo.",
+        ".obobllbobo.",
+        "..oobbbboo..",
+        "...oddood...",
+        "...odd..dd..",
+        "..ooo..ooo.." },
+    { // 7 MAGA
+        ".....oo.....",
+        "....obbo....",
+        "...obllbo...",
+        "..oobbbboo..",
+        "...osssso...",
+        "..osswwsso..",
+        "...osssso...",
+        "..oobbbboo..",
+        ".hoboblboboh",
+        ".hobobbboboh",
+        ".h.obbbbo..h",
+        "...oooooo..." },
+    { // 8 EXPLORADORA
+        "....oooo....",
+        "...obbbbo...",
+        "..obhhhhbo..",
+        "..obswwsbo..",
+        "...osssso...",
+        "...ohhhho...",
+        "..ooddddoo..",
+        ".loodllldoo.",
+        ".loodddddool",
+        "...ob..bo.l.",
+        "...ob..bo...",
         "..ooo..ooo.." }
 };
 
@@ -91,16 +130,16 @@ static Color Palette(char ch, Color body, Color light) {
     case 'l': return light;
     case 'w': return WHITE;
     case 'r': return { 220, 50, 50, 255 };
-    case 'h': return { 40, 200, 190, 255 };   // pelo turquesa
-    case 's': return { 220, 165, 125, 255 };
-    case 'd': return { 40, 60, 130, 255 };
+    case 'h': return { 235, 180, 80, 255 };   // adorno dorado o pelo
+    case 's': return { 225, 175, 135, 255 };  // piel
+    case 'd': return { 45, 65, 110, 255 };    // ropaje secundario
     default:  return BLANK;
     }
 }
 
 void DrawPixelArt(int art, float x, float y, int scale,
     Color body, Color light, bool flipX) {
-    if (art < 0 || art > 5) return;
+    if (art < 0 || art > 8) return;
     for (int r = 0; r < 12; ++r) {
         const char* row = ART[art][r];
         int len = static_cast<int>(std::strlen(row));

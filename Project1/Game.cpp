@@ -1,19 +1,23 @@
 #include "Game.h"
-
 #include <cmath>
 #include <string>
+#include "raylib.h"
+
+// ------------------------------------------------------------
+// CONSTRUCTOR / DESTRUCTOR / BUCLE
+// ------------------------------------------------------------
 
 Game::Game() {
     InitWindow(SCREEN_W, SCREEN_H, "Mini Aventura RPG");
-
-    // ESC se reserva para pausar, no para cerrar directamente la ventana.
-    SetExitKey(KEY_NULL);
-
     SetTargetFPS(60);
-    SetRandomSeed(static_cast<unsigned int>(GetTime() * 1000));
+
+    // Desactivar el cierre automatico de Raylib por tecla ESCAPE
+    // para centralizar el comportamiento de Escape en el controlador
+    SetExitKey(KEY_NULL);
 
     mapView.Load();
     InitWorld();
+    state = GameState::TITLE_SCREEN;
 }
 
 Game::~Game() {
@@ -26,46 +30,35 @@ void Game::InitWorld() {
     player = Player();
     enemies.clear();
 
-    // Lee las marcas A-F del mapa y crea cada enemigo en esa celda.
     const std::vector<TileMap::Spawn> spawns = map.ExtractSpawns();
-
-    for (const TileMap::Spawn& spawn : spawns) {
-        const MonsterSpecies* species = FindSpecies(spawn.id);
-
+    for (const auto& sp : spawns) {
+        const MonsterSpecies* species = FindSpecies(sp.id);
         if (species != nullptr) {
-            enemies.emplace_back(*species, spawn.col, spawn.row);
+            enemies.emplace_back(*species, sp.col, sp.row);
         }
     }
 
-    state = GameState::MAP;
-    prevState = GameState::MAP;
-    phase = CombatPhase::PLAYER_TURN;
-    result = CombatResult::NONE;
-
     currentEnemy = nullptr;
-    combatLog.clear();
-
-    selectedButton = 0;
-    pauseSel = 0;
-    timer = 0.0f;
     mapCooldown = 0.0f;
     showMinimap = true;
-    quit = false;
+    confirmExit = false;
 }
 
 void Game::Reset() {
     InitWorld();
 }
 
+void Game::StartNewGame(HeroClass chosenClass) {
+    Reset();
+    player.InitClass(chosenClass);
+    state = GameState::MAP;
+}
+
 void Game::Run() {
     while (!WindowShouldClose() && !quit) {
         const float dt = GetFrameTime();
-
         Update(dt);
-
-        BeginDrawing();
         Draw();
-        EndDrawing();
     }
 }
 
@@ -77,33 +70,47 @@ void Game::Pause() {
     prevState = state;
     state = GameState::PAUSED;
     pauseSel = 0;
+    confirmExit = false;
 }
 
 void Game::Resume() {
     state = prevState;
+    confirmExit = false;
 }
 
 void Game::ActivatePause(int option) {
     switch (option) {
-    case 0:
+    case 0: // Reanudar
         Resume();
         break;
-
-    case 1:
+    case 1: { // Reiniciar (conserva el heroe elegido)
+        const HeroClass currentClass = player.heroClass;
         Reset();
+        player.InitClass(currentClass);
+        Resume();
         break;
-
-    case 2:
-        quit = true;
+    }
+    case 2: // Volver al titulo (solicita confirmacion)
+        confirmExit = true;
         break;
-
     default:
         break;
     }
 }
 
 void Game::UpdatePause() {
-    // Al no llamar UpdateMap ni UpdateCombat, el juego queda congelado.
+    if (confirmExit) {
+        if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_ENTER)) {
+            state = GameState::TITLE_SCREEN;
+            confirmExit = false;
+            Reset();
+        }
+        else if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE)) {
+            confirmExit = false;
+        }
+        return;
+    }
+
     if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE)) {
         Resume();
         return;
@@ -132,17 +139,135 @@ void Game::UpdatePause() {
 }
 
 // ------------------------------------------------------------
-// ACTUALIZACIÓN GENERAL
+// PANTALLAS DE TITULO, CLASES Y CONTROLES
+// ------------------------------------------------------------
+
+void Game::UpdateTitle() {
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+        titleSel = (titleSel + 1) % 4;
+        if (titleSel == 1 && !continueAvailable) {
+            titleSel = 2; // Saltar opcion desactivada
+        }
+    }
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+        titleSel = (titleSel + 3) % 4;
+        if (titleSel == 1 && !continueAvailable) {
+            titleSel = 0; // Saltar opcion desactivada
+        }
+    }
+
+    const Vector2 mouse = GetMousePosition();
+    const int hovered = titleView.GetTitleButton(mouse);
+    if (hovered >= 0) {
+        if (hovered != 1 || continueAvailable) {
+            titleSel = hovered;
+        }
+    }
+
+    auto activateOption = [this](int opt) {
+        switch (opt) {
+        case 0: // Nueva partida
+            classSel = 0;
+            state = GameState::CLASS_SELECT;
+            break;
+        case 1: // Continuar (desactivado en esta etapa)
+            if (continueAvailable) {
+                // Se integrara en la Etapa 7
+            }
+            break;
+        case 2: // Controles
+            state = GameState::CONTROLS;
+            break;
+        case 3: // Salir
+            quit = true;
+            break;
+        }
+    };
+
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
+        activateOption(titleSel);
+    }
+    else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && hovered >= 0) {
+        if (hovered != 1 || continueAvailable) {
+            activateOption(hovered);
+        }
+    }
+}
+
+void Game::UpdateClassSelect() {
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+        classSel = (classSel + 1) % 3;
+    }
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+        classSel = (classSel + 2) % 3;
+    }
+
+    const Vector2 mouse = GetMousePosition();
+    const int hoveredCard = titleView.GetClassCard(mouse);
+    if (hoveredCard >= 0 && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        classSel = hoveredCard;
+    }
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        state = GameState::TITLE_SCREEN;
+        return;
+    }
+
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
+        StartNewGame(static_cast<HeroClass>(classSel));
+        return;
+    }
+
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (titleView.IsOverBackButton(mouse, GameState::CLASS_SELECT)) {
+            state = GameState::TITLE_SCREEN;
+            return;
+        }
+        if (titleView.IsOverStartButton(mouse)) {
+            StartNewGame(static_cast<HeroClass>(classSel));
+            return;
+        }
+    }
+}
+
+void Game::UpdateControls() {
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
+        state = GameState::TITLE_SCREEN;
+        return;
+    }
+
+    const Vector2 mouse = GetMousePosition();
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (titleView.IsOverBackButton(mouse, GameState::CONTROLS)) {
+            state = GameState::TITLE_SCREEN;
+            return;
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// ACTUALIZACION GENERAL
 // ------------------------------------------------------------
 
 void Game::Update(float dt) {
     switch (state) {
+    case GameState::TITLE_SCREEN:
+        UpdateTitle();
+        break;
+
+    case GameState::CLASS_SELECT:
+        UpdateClassSelect();
+        break;
+
+    case GameState::CONTROLS:
+        UpdateControls();
+        break;
+
     case GameState::MAP:
         if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE)) {
             Pause();
             break;
         }
-
         UpdateMap(dt);
         break;
 
@@ -151,7 +276,6 @@ void Game::Update(float dt) {
             Pause();
             break;
         }
-
         UpdateCombat(dt);
         break;
 
@@ -161,7 +285,16 @@ void Game::Update(float dt) {
 
     case GameState::GAME_OVER:
     case GameState::VICTORY:
-        if (IsKeyPressed(KEY_ENTER)) {
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
+            // Reinicia la partida conservando el mismo heroe
+            const HeroClass currentClass = player.heroClass;
+            Reset();
+            player.InitClass(currentClass);
+            state = GameState::MAP;
+        }
+        else if (IsKeyPressed(KEY_ESCAPE)) {
+            // Vuelve a la pantalla de titulo
+            state = GameState::TITLE_SCREEN;
             Reset();
         }
         break;
@@ -196,7 +329,7 @@ void Game::UpdateMap(float dt) {
         enemy.UpdateAI(dt, player.Center(), map);
     }
 
-    // RF-03: tocar a un enemigo inicia el combate.
+    // Tocar a un enemigo inicia el combate.
     if (mapCooldown <= 0.0f) {
         for (Enemy& enemy : enemies) {
             if (!enemy.defeated &&
@@ -221,19 +354,18 @@ void Game::StartCombat(Enemy* enemy) {
     state = GameState::COMBAT;
     phase = CombatPhase::PLAYER_TURN;
     result = CombatResult::NONE;
-
     selectedButton = 0;
     timer = 0.0f;
 
     combatLog.clear();
-    AddLog("Un " + enemy->name + " salvaje aparece!");
-    AddLog("Tu turno.");
+    AddLog("Aparece un " + enemy->name + "!");
+    AddLog("Que hara " + player.name + "?");
 }
 
-void Game::AddLog(const std::string& message) {
-    combatLog.push_back(message);
+void Game::AddLog(const std::string& msg) {
+    combatLog.push_back(msg);
 
-    while (combatLog.size() > 6) {
+    while (combatLog.size() > 10) {
         combatLog.pop_front();
     }
 }
@@ -241,8 +373,8 @@ void Game::AddLog(const std::string& message) {
 void Game::UpdateCombat(float dt) {
     switch (phase) {
     case CombatPhase::PLAYER_TURN: {
-        // Menú 2 x 2:
-        // 0 Atacar, 1 Habilidad, 2 Poción, 3 Huir.
+        // Menu 2 x 2:
+        // 0 Atacar, 1 Habilidad, 2 Pocion, 3 Huir.
         if (IsKeyPressed(KEY_RIGHT) ||
             IsKeyPressed(KEY_LEFT) ||
             IsKeyPressed(KEY_D) ||
@@ -280,20 +412,16 @@ void Game::UpdateCombat(float dt) {
 
     case CombatPhase::ENEMY_WAIT:
         timer -= dt;
-
         if (timer <= 0.0f) {
             EnemyTurn();
         }
-
         break;
 
     case CombatPhase::END_WAIT:
         timer -= dt;
-
         if (timer <= 0.0f) {
             FinishCombat();
         }
-
         break;
     }
 }
@@ -303,93 +431,84 @@ void Game::ExecutePlayerAction(PlayerAction action) {
         return;
     }
 
-    Enemy& enemy = *currentEnemy;
-    bool turnConsumed = true;
-
     switch (action) {
     case PlayerAction::ATTACK: {
-        const int damage = player.CalculateDamage(enemy);
-        enemy.TakeDamage(damage);
+        const int dmg = player.CalculateDamage(*currentEnemy);
+        currentEnemy->TakeDamage(dmg);
+        AddLog(player.name + " ataca causando " + std::to_string(dmg) + " pts.");
 
-        AddLog("Atacas: " + std::to_string(damage) + " de dano.");
+        if (!currentEnemy->IsAlive()) {
+            CheckCombatEnd();
+        }
+        else {
+            phase = CombatPhase::ENEMY_WAIT;
+            timer = 1.0f;
+        }
         break;
     }
 
     case PlayerAction::SKILL: {
-        // Si no hay MP suficiente, el jugador conserva su turno.
-        if (!player.UseSkillCost()) {
-            AddLog(
-                "MP insuficiente! (" +
-                std::to_string(Player::SKILL_COST) +
-                " MP)"
-            );
-
-            turnConsumed = false;
-            break;
+        if (!player.CanUseSkill()) {
+            AddLog("No tienes suficiente mana! (" + std::to_string(player.GetSkillCost()) + " MP)");
+            return;
         }
 
-        const int damage =
-            player.CalculateDamage(enemy, Player::SKILL_MULT);
-
-        enemy.TakeDamage(damage);
-
-        AddLog(
-            "Habilidad: " +
-            std::to_string(damage) +
-            " de dano."
+        player.UseSkillCost();
+        const int dmg = player.CalculateDamage(
+            *currentEnemy,
+            player.GetSkillMultiplier()
         );
 
+        currentEnemy->TakeDamage(dmg);
+        AddLog(player.name + " usa " + player.GetSkillName() + "!");
+        AddLog("Impacto critico por " + std::to_string(dmg) + " pts!");
+
+        if (!currentEnemy->IsAlive()) {
+            CheckCombatEnd();
+        }
+        else {
+            phase = CombatPhase::ENEMY_WAIT;
+            timer = 1.0f;
+        }
         break;
     }
 
     case PlayerAction::POTION: {
-        if (!player.UsePotion()) {
+        if (!player.CanUsePotion()) {
             AddLog("No te quedan pociones!");
-            turnConsumed = false;
-            break;
+            return;
         }
 
-        AddLog(
-            "Pocion: +" +
-            std::to_string(Player::POTION_HEAL) +
-            " HP."
-        );
+        player.UsePotion();
+        AddLog(player.name + " bebe una pocion.");
+        AddLog("Recupera " + std::to_string(Player::POTION_HEAL) + " de vida!");
 
+        phase = CombatPhase::ENEMY_WAIT;
+        timer = 1.0f;
         break;
     }
 
     case PlayerAction::FLEE: {
-        // Probabilidad de huida del 50 %.
-        if (GetRandomValue(1, 100) <= 50) {
-            AddLog("Lograste huir!");
+        const int fleeChance = player.GetFleeChance();
+        const bool success = (GetRandomValue(1, 100) <= fleeChance);
 
+        if (success) {
+            AddLog(player.name + " logro escapar!");
             result = CombatResult::FLED;
             phase = CombatPhase::END_WAIT;
             timer = 1.0f;
-            return;
         }
-
-        AddLog("No pudiste huir!");
+        else {
+            AddLog(player.name + " intento huir pero fallo!");
+            phase = CombatPhase::ENEMY_WAIT;
+            timer = 1.0f;
+        }
         break;
     }
 
     default:
-        return;
+        break;
     }
-
-    // Acciones no válidas, como usar habilidad sin MP, no consumen turno.
-    if (!turnConsumed) {
-        return;
-    }
-
-    if (!enemy.IsAlive()) {
-        CheckCombatEnd();
-        return;
-    }
-
-    // El enemigo actuará después de una pausa breve.
-    phase = CombatPhase::ENEMY_WAIT;
-    timer = 1.0f;
 }
 
 void Game::EnemyTurn() {
@@ -397,101 +516,75 @@ void Game::EnemyTurn() {
         return;
     }
 
-    const int damage = currentEnemy->CalculateDamage(player);
-    player.TakeDamage(damage);
-
-    AddLog(
-        currentEnemy->name +
-        " ataca: " +
-        std::to_string(damage) +
-        " de dano."
-    );
+    const int dmg = currentEnemy->CalculateDamage(player);
+    player.TakeDamage(dmg);
+    AddLog(currentEnemy->name + " golpea causando " + std::to_string(dmg) + " pts!");
 
     if (!player.IsAlive()) {
         CheckCombatEnd();
-        return;
     }
-
-    phase = CombatPhase::PLAYER_TURN;
-    AddLog("Tu turno.");
+    else {
+        phase = CombatPhase::PLAYER_TURN;
+    }
 }
 
 void Game::CheckCombatEnd() {
-    if (currentEnemy == nullptr) {
-        return;
-    }
-
     if (!player.IsAlive()) {
         result = CombatResult::PLAYER_LOST;
-        AddLog("Has sido derrotado...");
+        phase = CombatPhase::END_WAIT;
+        timer = 1.5f;
     }
-    else if (!currentEnemy->IsAlive()) {
+    else if (currentEnemy != nullptr && !currentEnemy->IsAlive()) {
         result = CombatResult::PLAYER_WON;
-        AddLog(currentEnemy->name + " derrotado!");
+        phase = CombatPhase::END_WAIT;
+        timer = 1.5f;
     }
-    else {
-        return;
-    }
-
-    phase = CombatPhase::END_WAIT;
-    timer = 1.5f;
 }
 
 void Game::FinishCombat() {
-    if (currentEnemy == nullptr) {
-        state = GameState::MAP;
-        return;
-    }
-
     switch (result) {
-    case CombatResult::PLAYER_LOST:
-        state = GameState::GAME_OVER;
-        break;
-
     case CombatResult::PLAYER_WON:
-        currentEnemy->defeated = true;
+        if (currentEnemy != nullptr) {
+            currentEnemy->defeated = true;
 
+            // Desbloqueo de compuertas
+            if (currentEnemy->unlocksWall >= 0) {
+                map.OpenGate(currentEnemy->unlocksWall);
+            }
+
+            if (currentEnemy->isBoss) {
+                state = GameState::VICTORY;
+                return;
+            }
+        }
+
+        // Subida de nivel y recuperacion automatica actuales (se conservan en esta etapa)
         player.LevelUp();
         player.FullRestore();
-
-        // Abre la compuerta asociada a este monstruo, si tiene una.
-        if (currentEnemy->unlocksWall >= 0) {
-            map.OpenGate(currentEnemy->unlocksWall);
-        }
-
-        // Derrotar al jefe lleva a la pantalla de victoria.
-        if (currentEnemy->isBoss) {
-            state = GameState::VICTORY;
-        }
-        else {
-            state = GameState::MAP;
-        }
-
+        state = GameState::MAP;
         mapCooldown = 0.5f;
+        break;
+
+    case CombatResult::PLAYER_LOST:
+        state = GameState::GAME_OVER;
         break;
 
     case CombatResult::FLED: {
         state = GameState::MAP;
         mapCooldown = 2.0f;
 
-        // Empuja un poco al jugador alejándolo del enemigo.
-        const Vector2 playerCenter = player.Center();
-        const Vector2 enemyCenter = currentEnemy->Center();
+        if (currentEnemy != nullptr) {
+            const Vector2 pc = player.Center();
+            const Vector2 ec = currentEnemy->Center();
+            Vector2 away{ pc.x - ec.x, pc.y - ec.y };
+            const float len = std::sqrt(away.x * away.x + away.y * away.y);
 
-        const float dx = playerCenter.x - enemyCenter.x;
-        const float dy = playerCenter.y - enemyCenter.y;
-        const float distance = std::sqrt(dx * dx + dy * dy);
-
-        if (distance > 0.0f) {
-            map.Move(
-                player.body,
-                {
-                    dx / distance * 64.0f,
-                    dy / distance * 64.0f
-                }
-            );
+            if (len > 0.0f) {
+                away.x = (away.x / len) * 64.0f;
+                away.y = (away.y / len) * 64.0f;
+                map.Move(player.body, away);
+            }
         }
-
         break;
     }
 
@@ -509,7 +602,29 @@ void Game::FinishCombat() {
 // ------------------------------------------------------------
 
 void Game::DrawScene(GameState scene) {
+    const Vector2 mouse = GetMousePosition();
+
     switch (scene) {
+    case GameState::TITLE_SCREEN: {
+        const int hovered = titleView.GetTitleButton(mouse);
+        titleView.DrawTitle(titleSel, continueAvailable, hovered);
+        break;
+    }
+
+    case GameState::CLASS_SELECT: {
+        const int hovered = titleView.GetClassCard(mouse);
+        const bool backHover = titleView.IsOverBackButton(mouse, GameState::CLASS_SELECT);
+        const bool startHover = titleView.IsOverStartButton(mouse);
+        titleView.DrawClassSelect(classSel, hovered, backHover, startHover);
+        break;
+    }
+
+    case GameState::CONTROLS: {
+        const bool backHover = titleView.IsOverBackButton(mouse, GameState::CONTROLS);
+        titleView.DrawControls(backHover);
+        break;
+    }
+
     case GameState::MAP:
         mapView.DrawWorld(map, player, enemies);
 
@@ -522,9 +637,8 @@ void Game::DrawScene(GameState scene) {
 
     case GameState::COMBAT:
         if (currentEnemy != nullptr) {
-            const Vector2 mousePos = GetMousePosition();
             const int hovered = (phase == CombatPhase::PLAYER_TURN)
-                ? ui.GetHoveredButton(mousePos)
+                ? ui.GetHoveredButton(mouse)
                 : -1;
 
             ui.Draw(
@@ -553,37 +667,49 @@ void Game::DrawScene(GameState scene) {
 }
 
 void Game::Draw() {
+    BeginDrawing();
+    ClearBackground(BLACK);
+
     if (state == GameState::PAUSED) {
-        // Dibuja la escena anterior sin actualizarla.
         DrawScene(prevState);
         mapView.DrawPause(pauseSel);
+        if (confirmExit) {
+            DrawConfirmExit();
+        }
     }
     else {
         DrawScene(state);
     }
+
+    EndDrawing();
 }
 
-void Game::DrawEndScreen(const char* title, Color color) const {
-    ClearBackground(BLACK);
-
+void Game::DrawEndScreen(const char* title, Color c) const {
+    DrawRectangle(0, 0, 960, 540, Fade(BLACK, 0.7f));
     const int titleWidth = MeasureText(title, 60);
+    DrawText(title, (960 - titleWidth) / 2, 200, 60, c);
 
-    DrawText(
-        title,
-        (SCREEN_W - titleWidth) / 2,
-        200,
-        60,
-        color
-    );
+    const char* sub = "[ENTER] Reintentar con el mismo heroe   |   [ESC] Volver al titulo";
+    const int subWidth = MeasureText(sub, 20);
+    DrawText(sub, (960 - subWidth) / 2, 290, 20, RAYWHITE);
+}
 
-    const char* hint = "Presiona ENTER para reiniciar";
-    const int hintWidth = MeasureText(hint, 24);
+void Game::DrawConfirmExit() const {
+    DrawRectangle(0, 0, 960, 540, Fade(BLACK, 0.75f));
 
-    DrawText(
-        hint,
-        (SCREEN_W - hintWidth) / 2,
-        300,
-        24,
-        RAYWHITE
-    );
+    Rectangle dialog{ 230.0f, 180.0f, 500.0f, 180.0f };
+    DrawRectangleRec(dialog, Color{ 24, 32, 48, 255 });
+    DrawRectangleLinesEx(dialog, 3.0f, GOLD);
+
+    const char* q = "Volver a la pantalla de titulo?";
+    int qw = MeasureText(q, 24);
+    DrawText(q, static_cast<int>(dialog.x + (dialog.width - qw) / 2), static_cast<int>(dialog.y + 28), 24, RAYWHITE);
+
+    const char* sub = "Se perdera cualquier progreso no guardado.";
+    int sw = MeasureText(sub, 16);
+    DrawText(sub, static_cast<int>(dialog.x + (dialog.width - sw) / 2), static_cast<int>(dialog.y + 68), 16, { 200, 210, 225, 255 });
+
+    const char* opt = "[S / ENTER] Si, volver     [N / ESC] Cancelar";
+    int ow = MeasureText(opt, 16);
+    DrawText(opt, static_cast<int>(dialog.x + (dialog.width - ow) / 2), static_cast<int>(dialog.y + 120), 16, GOLD);
 }

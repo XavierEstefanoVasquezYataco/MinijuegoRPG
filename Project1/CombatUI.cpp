@@ -74,7 +74,7 @@ void CombatUI::Draw(const Player& player, const Enemy& enemy,
     DrawStatusBox({ 20, 20, 340, 80 }, enemy, false);
     DrawStatusBox({ 600, 270, 340, 104 }, player, true);
 
-    DrawText(TextFormat("Habilidad: %d MP  |  Pociones: %d", Player::SKILL_COST, player.potions),
+    DrawText(TextFormat("%s: %d MP  |  Pociones: %d", player.GetSkillName(), player.GetSkillCost(), player.potions),
         610, 388, 16, WHITE);
 
     // ----- Panel inferior -----
@@ -103,10 +103,13 @@ void CombatUI::Draw(const Player& player, const Enemy& enemy,
                 0.3f, 6, { 255, 225, 120, 255 });
         Color txt = menuEnabled ? INK : GRAY;
         if (sel && menuEnabled) {
-            float ax = buttons[i].x + 10, ay = buttons[i].y + 15;
-            DrawTriangle({ ax, ay }, { ax, ay + 16 }, { ax + 12, ay + 8 }, INK);
+            float ax = buttons[i].x + 8, ay = buttons[i].y + 15;
+            DrawTriangle({ ax, ay }, { ax, ay + 16 }, { ax + 10, ay + 8 }, INK);
         }
-        DrawText(LABELS[i], static_cast<int>(buttons[i].x) + 30, static_cast<int>(buttons[i].y) + 12, 20, txt);
+        const char* label = (i == 1) ? player.GetSkillName() : LABELS[i];
+        int fontSize = (i == 1 && std::strlen(label) > 12) ? 16 : 18;
+        int textOffset = (sel && menuEnabled) ? 24 : 16;
+        DrawText(label, static_cast<int>(buttons[i].x) + textOffset, static_cast<int>(buttons[i].y) + 14, fontSize, txt);
     }
 }
 

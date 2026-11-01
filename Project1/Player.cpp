@@ -89,8 +89,8 @@ int Combatant::CalculateDamage(const Combatant& target, float multiplier) const 
 
 // ---------- Player ----------
 Player::Player() : Combatant("Guerrero", 120, 15, 18, 6) {
-    body.x = 2 * TileMap::TILE + 4;
-    body.y = 8 * TileMap::TILE + 4;
+    body.x = 4.0f * TileMap::TILE + 4.0f;
+    body.y = 14.0f * TileMap::TILE + 4.0f;
     InitClass(HeroClass::WARRIOR);
 }
 
@@ -192,12 +192,21 @@ Enemy::Enemy(const MonsterSpecies& sp, int col, int row)
 
 void Enemy::UpdateAI(float dt, Vector2 target, const TileMap& map) {
     if (defeated) return;
+
+    // Los enemigos nunca pueden entrar a la aldea segura (col < 17)
+    constexpr float VILLAGE_LIMIT_X = 17.0f * TileMap::TILE;
+
     Vector2 c = Center();
     float dx = target.x - c.x, dy = target.y - c.y;
     float dist = std::sqrt(dx * dx + dy * dy);
 
-    if (dist < detectRadius) ai = AIState::CHASE;
-    else if (ai == AIState::CHASE && dist > loseRadius) ai = AIState::PATROL;
+    // Si el jugador se resguarda dentro de la aldea segura, se interrumpe la persecucion
+    if (target.x < VILLAGE_LIMIT_X) {
+        ai = AIState::PATROL;
+    } else {
+        if (dist < detectRadius) ai = AIState::CHASE;
+        else if (ai == AIState::CHASE && dist > loseRadius) ai = AIState::PATROL;
+    }
 
     Vector2 dir{ 0, 0 };
     float spd = 0;
@@ -222,5 +231,12 @@ void Enemy::UpdateAI(float dt, Vector2 target, const TileMap& map) {
         break;
     }
     }
-    map.Move(body, { dir.x * spd * dt, dir.y * spd * dt });
+
+    Vector2 delta = { dir.x * spd * dt, dir.y * spd * dt };
+    // Evita explicitamente que un enemigo cruce fisicamente hacia la aldea
+    if (body.x + delta.x < VILLAGE_LIMIT_X) {
+        delta.x = 0.0f;
+    }
+
+    map.Move(body, delta);
 }

@@ -30,6 +30,8 @@ private:
     std::vector<Enemy> enemies;
     Enemy* currentEnemy = nullptr;
 
+    Camera2D camera{};
+
     CombatUI ui;
     MapView mapView;
     TitleView titleView;
@@ -54,6 +56,7 @@ private:
     void Draw();
     void DrawScene(GameState s);
 
+    void UpdateCamera();
     void UpdateTitle();
     void UpdateClassSelect();
     void UpdateControls();
@@ -70,8 +73,8 @@ private:
     void EnemyTurn();
     void CheckCombatEnd();
     void FinishCombat();
-
     void AddLog(const std::string& msg);
+
     void DrawEndScreen(const char* title, Color c) const;
     void DrawConfirmExit() const;
 };

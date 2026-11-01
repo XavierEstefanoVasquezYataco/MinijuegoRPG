@@ -8,8 +8,8 @@
 class TileMap {
 public:
     static constexpr int TILE = 32;
-    static constexpr int COLS = 30;
-    static constexpr int ROWS = 16;
+    static constexpr int COLS = 60;
+    static constexpr int ROWS = 32;
 
     struct Spawn { char id; int col; int row; };
 

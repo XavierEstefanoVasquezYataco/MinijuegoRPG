@@ -1,4 +1,5 @@
 #include "Game.h"
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include "raylib.h"
@@ -42,15 +43,33 @@ void Game::InitWorld() {
     mapCooldown = 0.0f;
     showMinimap = true;
     confirmExit = false;
+
+    // Configuracion de la camara 2D centrada en el jugador
+    camera.offset = { SCREEN_W / 2.0f, SCREEN_H / 2.0f };
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
+    UpdateCamera();
 }
 
 void Game::Reset() {
     InitWorld();
 }
 
+void Game::UpdateCamera() {
+    const Vector2 target = player.Center();
+    const float halfW = SCREEN_W / 2.0f;
+    const float halfH = SCREEN_H / 2.0f;
+    const float mapPixelW = static_cast<float>(TileMap::COLS * TileMap::TILE);
+    const float mapPixelH = static_cast<float>(TileMap::ROWS * TileMap::TILE);
+
+    camera.target.x = std::clamp(target.x, halfW, mapPixelW - halfW);
+    camera.target.y = std::clamp(target.y, halfH, mapPixelH - halfH);
+}
+
 void Game::StartNewGame(HeroClass chosenClass) {
     Reset();
     player.InitClass(chosenClass);
+    UpdateCamera();
     state = GameState::MAP;
 }
 
@@ -290,6 +309,7 @@ void Game::Update(float dt) {
             const HeroClass currentClass = player.heroClass;
             Reset();
             player.InitClass(currentClass);
+            UpdateCamera();
             state = GameState::MAP;
         }
         else if (IsKeyPressed(KEY_ESCAPE)) {
@@ -323,6 +343,9 @@ void Game::UpdateMap(float dt) {
 
     // Actualiza movimiento del jugador y resuelve colisiones con tiles.
     player.Update(inputDir, dt, map);
+
+    // Actualiza la posicion de la camara de seguimiento
+    UpdateCamera();
 
     // Actualiza la IA simple de los enemigos.
     for (Enemy& enemy : enemies) {
@@ -585,6 +608,7 @@ void Game::FinishCombat() {
                 map.Move(player.body, away);
             }
         }
+        UpdateCamera();
         break;
     }
 
@@ -626,10 +650,10 @@ void Game::DrawScene(GameState scene) {
     }
 
     case GameState::MAP:
-        mapView.DrawWorld(map, player, enemies);
+        mapView.DrawWorld(map, player, enemies, camera);
 
         if (showMinimap) {
-            mapView.DrawMinimap(map, player, enemies);
+            mapView.DrawMinimap(map, player, enemies, camera);
         }
 
         mapView.DrawHUD(player);

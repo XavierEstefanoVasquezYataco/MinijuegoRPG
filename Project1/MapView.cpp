@@ -1,6 +1,6 @@
 #include "MapView.h"
 #include "PixelArt.h"
-
+#include <algorithm>
 #include <cmath>
 
 static const char* PAUSE_LABELS[3] = {
@@ -31,63 +31,137 @@ void MapView::DrawTile(const TileMap& map, int col, int row) const {
     const int x = col * tileSize;
     const int y = row * tileSize;
 
-    char tile = map.At(col, row);
+    const char tile = map.At(col, row);
 
-    // Base de pasto
-    DrawRectangle(x, y, tileSize, tileSize, { 88, 168, 96, 255 });
+    // Identificacion de sector segun la columna
+    // 0: Aldea segura (0..16)
+    // 1: Pradera abierta (17..28)
+    // 2: Bosque sombrio (29..39)
+    // 3: Ruinas antiguas (40..59)
+    const int sector = (col < 17) ? 0 : (col < 29) ? 1 : (col < 40) ? 2 : 3;
+
+    // Paleta base del suelo segun el sector
+    Color groundColor;
+    switch (sector) {
+    case 0: groundColor = { 92, 172, 98, 255 }; break;   // Aldea: cesped cuidado
+    case 1: groundColor = { 108, 188, 92, 255 }; break;  // Pradera: verde claro
+    case 2: groundColor = { 50, 110, 60, 255 }; break;   // Bosque: verde oscuro sombrio
+    case 3:
+    default: groundColor = { 110, 115, 122, 255 }; break; // Ruinas: losa de piedra gris
+    }
+
+    DrawRectangle(x, y, tileSize, tileSize, groundColor);
+
+    // Detalles decorativos deterministas segun el sector (sin aleatoriedad en runtime)
+    const int detHash = (col * 31 + row * 17) % 23;
+    if (tile == '.' || tile == 'p') {
+        if (sector == 1) { // Pradera: flores discretas
+            if (detHash == 1) {
+                DrawRectangle(x + 10, y + 14, 3, 3, { 250, 250, 245, 255 }); // flor blanca
+            }
+            else if (detHash == 5) {
+                DrawRectangle(x + 22, y + 20, 3, 3, { 255, 225, 80, 255 }); // flor amarilla
+            }
+        }
+        else if (sector == 3) { // Ruinas: fisuras sutiles en la piedra
+            if (detHash == 2) {
+                DrawLine(x + 6, y + 8, x + 16, y + 14, { 80, 85, 92, 255 });
+            }
+        }
+    }
 
     switch (tile) {
     case '#':
-        // Árboles representados con primitivas de Raylib
-        DrawCircle(x + 16, y + 16, 17, { 30, 100, 50, 255 });
-        DrawCircle(x + 12, y + 12, 8, { 55, 135, 75, 255 });
-        DrawCircle(x + 22, y + 18, 7, { 45, 120, 60, 255 });
+        // Elementos solidos: arboles en aldea/pradera/bosque, pilares de piedra en ruinas
+        if (sector == 3) {
+            // Pilares de piedra en ruinas
+            DrawRectangle(x + 4, y + 4, 24, 24, { 85, 90, 100, 255 });
+            DrawRectangleLines(x + 4, y + 4, 24, 24, { 60, 65, 75, 255 });
+            DrawRectangle(x + 8, y + 8, 16, 16, { 115, 120, 130, 255 });
+        }
+        else {
+            // Arboles con tono segun el bosque o pradera
+            Color treeBase = (sector == 2) ? Color{ 18, 65, 32, 255 } : Color{ 30, 100, 50, 255 };
+            Color treeMid = (sector == 2) ? Color{ 30, 90, 45, 255 } : Color{ 55, 135, 75, 255 };
+            Color treeHigh = (sector == 2) ? Color{ 25, 80, 40, 255 } : Color{ 45, 120, 60, 255 };
+            DrawCircle(x + 16, y + 16, 17, treeBase);
+            DrawCircle(x + 12, y + 12, 8, treeMid);
+            DrawCircle(x + 22, y + 18, 7, treeHigh);
+        }
         break;
 
     case 'p':
-        // Camino
-        DrawRectangle(x, y, tileSize, tileSize, { 232, 208, 152, 255 });
+        // Caminos: claros en aldea, tierra en pradera/bosque, baldosas en ruinas
+        if (sector == 0) {
+            DrawRectangle(x, y, tileSize, tileSize, { 236, 216, 168, 255 }); // Adoquin claro
+        }
+        else if (sector == 1) {
+            DrawRectangle(x, y, tileSize, tileSize, { 222, 202, 145, 255 }); // Tierra clara
+        }
+        else if (sector == 2) {
+            DrawRectangle(x, y, tileSize, tileSize, { 165, 135, 95, 255 });  // Sendero humus oscuro
+        }
+        else {
+            DrawRectangle(x, y, tileSize, tileSize, { 145, 150, 158, 255 }); // Baldosas antiguas
+            DrawRectangleLines(x + 2, y + 2, tileSize - 4, tileSize - 4, { 120, 125, 135, 255 });
+        }
         break;
 
     case 'W':
-        // Agua
-        DrawRectangle(x, y, tileSize, tileSize, { 110, 125, 165, 255 });
-        DrawRectangle(x + 4, y + 8, 10, 2, { 160, 190, 220, 255 });
+        // Agua: azul sereno en aldea/pradera, oscura en bosque/ruinas
+        if (sector == 2 || sector == 3) {
+            DrawRectangle(x, y, tileSize, tileSize, { 65, 85, 125, 255 });
+            DrawRectangle(x + 4, y + 8, 10, 2, { 110, 135, 175, 255 });
+        }
+        else {
+            DrawRectangle(x, y, tileSize, tileSize, { 110, 125, 165, 255 });
+            DrawRectangle(x + 4, y + 8, 10, 2, { 160, 190, 220, 255 });
+        }
         break;
 
     case 'H':
-        // Casa sencilla formada con primitivas
-        DrawRectangle(x + 4, y + 10, 24, 22, { 215, 215, 225, 255 });
-
-        if (map.At(col, row - 1) != 'H') {
-            DrawTriangle(
-                { static_cast<float>(x + 2), static_cast<float>(y + 12) },
-                { static_cast<float>(x + 16), static_cast<float>(y - 2) },
-                { static_cast<float>(x + 30), static_cast<float>(y + 12) },
-                { 215, 85, 55, 255 }
-            );
+        // Casas y muros de piedra
+        if (sector == 3) {
+            // Muros y cubiles en ruinas
+            DrawRectangle(x + 3, y + 6, 26, 24, { 95, 100, 108, 255 });
+            DrawRectangleLines(x + 3, y + 6, 26, 24, { 60, 65, 72, 255 });
+            DrawRectangle(x + 10, y + 14, 12, 16, { 50, 55, 62, 255 });
         }
-
-        DrawRectangle(x + 13, y + 20, 7, 12, { 90, 130, 190, 255 });
+        else {
+            DrawRectangle(x + 4, y + 10, 24, 22, { 225, 220, 225, 255 });
+            if (map.At(col, row - 1) != 'H') {
+                DrawTriangle(
+                    { static_cast<float>(x + 2), static_cast<float>(y + 12) },
+                    { static_cast<float>(x + 16), static_cast<float>(y - 2) },
+                    { static_cast<float>(x + 30), static_cast<float>(y + 12) },
+                    { 215, 80, 55, 255 }
+                );
+            }
+            DrawRectangle(x + 13, y + 20, 7, 12, { 90, 130, 190, 255 });
+        }
         break;
 
     case '1':
     case '2':
-        // Compuerta lógica cerrada
-        DrawRectangle(x, y, tileSize, tileSize, { 232, 208, 152, 255 });
+        // Compuerta logica cerrada con remaches
+        DrawRectangle(x, y, tileSize, tileSize, { 210, 190, 140, 255 });
         DrawRectangle(x + 4, y + 2, 6, tileSize - 4, { 110, 70, 40, 255 });
         DrawRectangle(x + 22, y + 2, 6, tileSize - 4, { 110, 70, 40, 255 });
-        DrawRectangle(x + 2, y + 8, tileSize - 4, 5, { 140, 90, 50, 255 });
-        DrawRectangle(x + 2, y + 20, tileSize - 4, 5, { 140, 90, 50, 255 });
+        DrawRectangle(x + 2, y + 8, tileSize - 4, 5, { 150, 95, 50, 255 });
+        DrawRectangle(x + 2, y + 20, tileSize - 4, 5, { 150, 95, 50, 255 });
+        // Remaches
+        DrawRectangle(x + 6, y + 10, 2, 2, GOLD);
+        DrawRectangle(x + 24, y + 10, 2, 2, GOLD);
+        DrawRectangle(x + 6, y + 22, 2, 2, GOLD);
+        DrawRectangle(x + 24, y + 22, 2, 2, GOLD);
         break;
 
     default:
-        // Pasto, puntos de aparición ya extraídos u otros tiles
         break;
     }
 
-    // Borde tenue para distinguir las celdas
-    DrawRectangleLines(x, y, tileSize, tileSize, Fade(DARKGREEN, 0.12f));
+    // Borde tenue de celda
+    DrawRectangleLines(x, y, tileSize, tileSize, Fade(BLACK, 0.08f));
 }
 
 void MapView::DrawPlayer(const Player& player) const {
@@ -186,7 +260,7 @@ void MapView::DrawPlayer(const Player& player) const {
         { 40, 200, 190, 255 }
     );
 
-    // Ojos orientados según la dirección
+    // Ojos orientados segun la direccion
     const int eyeOffsetX =
         player.facing == Facing::LEFT ? -2 :
         player.facing == Facing::RIGHT ? 2 : 0;
@@ -254,12 +328,23 @@ void MapView::DrawEnemy(const Enemy& enemy) const {
 void MapView::DrawWorld(
     const TileMap& map,
     const Player& player,
-    const std::vector<Enemy>& enemies
+    const std::vector<Enemy>& enemies,
+    const Camera2D& camera
 ) const {
     ClearBackground(BLACK);
 
-    for (int row = 0; row < TileMap::ROWS; ++row) {
-        for (int col = 0; col < TileMap::COLS; ++col) {
+    BeginMode2D(camera);
+
+    // Culling inteligente de tiles segun el frustum visible de la camara
+    const float halfW = 480.0f;
+    const float halfH = 270.0f;
+    const int colStart = std::max(0, static_cast<int>((camera.target.x - halfW) / TileMap::TILE) - 1);
+    const int colEnd = std::min(TileMap::COLS - 1, static_cast<int>((camera.target.x + halfW) / TileMap::TILE) + 1);
+    const int rowStart = std::max(0, static_cast<int>((camera.target.y - halfH) / TileMap::TILE) - 1);
+    const int rowEnd = std::min(TileMap::ROWS - 1, static_cast<int>((camera.target.y + halfH) / TileMap::TILE) + 1);
+
+    for (int row = rowStart; row <= rowEnd; ++row) {
+        for (int col = colStart; col <= colEnd; ++col) {
             DrawTile(map, col, row);
         }
     }
@@ -271,14 +356,18 @@ void MapView::DrawWorld(
     }
 
     DrawPlayer(player);
+
+    EndMode2D();
 }
 
 void MapView::DrawHUD(const Player& player) const {
-    DrawRectangle(0, 512, 960, 28, { 20, 20, 30, 255 });
+    DrawRectangle(0, 512, 960, 28, { 18, 22, 32, 245 });
+    DrawRectangleLinesEx({ 0.0f, 512.0f, 960.0f, 28.0f }, 1.0f, { 60, 75, 105, 200 });
 
     DrawText(
         TextFormat(
-            "Nv.%d  HP %d/%d  MP %d/%d  Pociones %d",
+            "[%s] Nv.%d  HP %d/%d  MP %d/%d  Pociones: %d",
+            player.GetClassName(),
             player.level,
             player.hp,
             player.maxHp,
@@ -286,17 +375,17 @@ void MapView::DrawHUD(const Player& player) const {
             player.maxMp,
             player.potions
         ),
-        10,
+        16,
         518,
         16,
-        WHITE
+        GOLD
     );
 
     DrawText(
-        "WASD: mover | P/ESC: pausa | M: minimapa",
-        560,
+        "WASD / Flechas: Mover  |  P / ESC: Pausa  |  M: Alternar minimapa",
+        450,
         520,
-        14,
+        13,
         LIGHTGRAY
     );
 }
@@ -304,43 +393,67 @@ void MapView::DrawHUD(const Player& player) const {
 void MapView::DrawMinimap(
     const TileMap& map,
     const Player& player,
-    const std::vector<Enemy>& enemies
+    const std::vector<Enemy>& enemies,
+    const Camera2D& camera
 ) const {
-    constexpr int scale = 4;
+    constexpr int scale = 3;
 
-    const int mapWidth = TileMap::COLS * scale;
-    const int mapHeight = TileMap::ROWS * scale;
-    const int originX = 960 - mapWidth - 8;
-    const int originY = 8;
+    const int mapWidth = TileMap::COLS * scale;   // 60 * 3 = 180 px
+    const int mapHeight = TileMap::ROWS * scale;  // 32 * 3 = 96 px
+    const int originX = 960 - mapWidth - 12;      // 768
+    const int originY = 12;
 
+    // Marco exterior con borde dorado
     DrawRectangle(
-        originX - 3,
-        originY - 3,
-        mapWidth + 6,
-        mapHeight + 6,
-        Fade(BLACK, 0.80f)
+        originX - 4,
+        originY - 4,
+        mapWidth + 8,
+        mapHeight + 8,
+        Fade(Color{ 14, 20, 32, 255 }, 0.85f)
+    );
+    DrawRectangleLinesEx(
+        { static_cast<float>(originX - 4), static_cast<float>(originY - 4),
+          static_cast<float>(mapWidth + 8), static_cast<float>(mapHeight + 8) },
+        1.5f,
+        GOLD
     );
 
+    // Dibujado de tiles a escala en el minimapa
     for (int row = 0; row < TileMap::ROWS; ++row) {
         for (int col = 0; col < TileMap::COLS; ++col) {
             const char tile = map.At(col, row);
 
-            Color color = { 120, 200, 110, 255 };
+            // Diferenciacion de biomas en el minimapa
+            const int miniSector = (col < 17) ? 0 : (col < 29) ? 1 : (col < 40) ? 2 : 3;
+
+            Color color;
+            if (miniSector == 0)      color = { 70, 150, 80, 255 };  // Aldea
+            else if (miniSector == 1) color = { 90, 175, 80, 255 };  // Pradera
+            else if (miniSector == 2) color = { 40, 95, 50, 255 };   // Bosque
+            else                      color = { 105, 110, 120, 255 }; // Ruinas
+
+            const bool isGateTile = (col == 28 || col == 39) && (row == 14 || row == 15);
 
             if (tile == '#') {
-                color = { 30, 100, 50, 255 };
+                color = (miniSector == 3) ? Color{ 60, 65, 75, 255 } : Color{ 25, 75, 40, 255 };
             }
             else if (tile == 'p') {
-                color = { 240, 230, 180, 255 };
+                // Compuertas abiertas se distinguen como paso libre esmeralda
+                if (isGateTile) {
+                    color = { 60, 220, 120, 255 }; // Compuerta abierta
+                }
+                else {
+                    color = (miniSector == 3) ? Color{ 160, 165, 175, 255 } : Color{ 225, 205, 145, 255 };
+                }
             }
             else if (tile == 'W') {
-                color = { 70, 100, 200, 255 };
+                color = (miniSector >= 2) ? Color{ 55, 80, 130, 255 } : Color{ 70, 110, 195, 255 };
             }
             else if (tile == 'H') {
-                color = { 200, 120, 90, 255 };
+                color = (miniSector == 3) ? Color{ 80, 85, 95, 255 } : Color{ 195, 115, 85, 255 };
             }
             else if (tile == '1' || tile == '2') {
-                color = { 130, 80, 40, 255 };
+                color = { 230, 45, 45, 255 }; // Compuerta cerrada (resaltada en rojo)
             }
 
             DrawRectangle(
@@ -353,29 +466,48 @@ void MapView::DrawMinimap(
         }
     }
 
+    // Enemigos en minimapa (rojos, jefe dorado/carmesi)
     for (const Enemy& enemy : enemies) {
         if (!enemy.defeated) {
             const Vector2 center = enemy.Center();
+            const int miniX = originX + static_cast<int>(center.x / (TileMap::TILE) * scale);
+            const int miniY = originY + static_cast<int>(center.y / (TileMap::TILE) * scale);
 
-            const int miniX =
-                originX + static_cast<int>(center.x / TileMap::TILE * scale);
-
-            const int miniY =
-                originY + static_cast<int>(center.y / TileMap::TILE * scale);
-
-            DrawRectangle(miniX - 1, miniY - 1, 4, 4, RED);
+            if (enemy.isBoss) {
+                DrawRectangle(miniX - 2, miniY - 2, 5, 5, GOLD);
+                DrawRectangle(miniX - 1, miniY - 1, 3, 3, RED);
+            }
+            else {
+                DrawRectangle(miniX - 1, miniY - 1, 3, 3, RED);
+            }
         }
     }
 
+    // Jugador en minimapa (punto blanco brillante)
     const Vector2 playerCenter = player.Center();
-
-    const int playerX =
-        originX + static_cast<int>(playerCenter.x / TileMap::TILE * scale);
-
-    const int playerY =
-        originY + static_cast<int>(playerCenter.y / TileMap::TILE * scale);
-
+    const int playerX = originX + static_cast<int>(playerCenter.x / (TileMap::TILE) * scale);
+    const int playerY = originY + static_cast<int>(playerCenter.y / (TileMap::TILE) * scale);
     DrawRectangle(playerX - 2, playerY - 2, 5, 5, WHITE);
+
+    // Visor de la camara en el minimapa (recuadro que indica la region visible)
+    const float viewW = 960.0f;
+    const float viewH = 540.0f;
+    const float totalWorldW = static_cast<float>(TileMap::COLS * TileMap::TILE);
+    const float totalWorldH = static_cast<float>(TileMap::ROWS * TileMap::TILE);
+
+    const float viewLeft = camera.target.x - viewW / 2.0f;
+    const float viewTop = camera.target.y - viewH / 2.0f;
+
+    const float miniViewX = originX + (viewLeft / totalWorldW) * mapWidth;
+    const float miniViewY = originY + (viewTop / totalWorldH) * mapHeight;
+    const float miniViewW = (viewW / totalWorldW) * mapWidth;
+    const float miniViewH = (viewH / totalWorldH) * mapHeight;
+
+    DrawRectangleLinesEx(
+        { miniViewX, miniViewY, miniViewW, miniViewH },
+        1.0f,
+        Fade(RAYWHITE, 0.70f)
+    );
 }
 
 Rectangle MapView::PauseButton(int index) const {

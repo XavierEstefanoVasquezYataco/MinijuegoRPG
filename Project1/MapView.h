@@ -10,10 +10,10 @@ public:
     void Unload();
 
     void DrawWorld(const TileMap& map, const Player& player,
-        const std::vector<Enemy>& enemies) const;
+        const std::vector<Enemy>& enemies, const Camera2D& camera) const;
     void DrawHUD(const Player& player) const;
     void DrawMinimap(const TileMap& map, const Player& player,
-        const std::vector<Enemy>& enemies) const;
+        const std::vector<Enemy>& enemies, const Camera2D& camera) const;
 
     void DrawPause(int selected) const;
     int GetPauseButton(Vector2 mouse) const;   // -1 si ninguno

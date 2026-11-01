@@ -2,6 +2,7 @@
 #include "PixelArt.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 static const char* LABELS[4] = { "ATACAR", "HABILIDAD", "POCION", "HUIR" };
 static const Color CREAM{ 248, 240, 208, 255 };
@@ -32,6 +33,14 @@ void CombatUI::DrawMpBar(Rectangle r, int v, int mx) const {
             { 60, 120, 230, 255 });
 }
 
+void CombatUI::DrawExpBar(Rectangle r, int v, int mx) const {
+    float ratio = mx > 0 ? std::clamp(static_cast<float>(v) / mx, 0.0f, 1.0f) : 0.0f;
+    DrawRectangleRounded(r, 0.5f, 6, { 70, 70, 80, 255 });
+    if (ratio > 0)
+        DrawRectangleRounded({ r.x, r.y, std::max(r.width * ratio, r.height), r.height }, 0.5f, 6,
+            { 165, 110, 230, 255 }); // Amatista / purpura
+}
+
 void CombatUI::DrawStatusBox(Rectangle r, const Combatant& c, bool showMp) const {
     DrawRectangleRec(r, CREAM);
     DrawRectangleLinesEx(r, 4, INK);
@@ -50,6 +59,38 @@ void CombatUI::DrawStatusBox(Rectangle r, const Combatant& c, bool showMp) const
         DrawText("MP", static_cast<int>(r.x) + 14, static_cast<int>(r.y) + 78, 16, { 40, 90, 200, 255 });
         DrawMpBar({ r.x + 44, r.y + 78, r.width - 60, 14 }, c.mp, c.maxMp);
     }
+}
+
+void CombatUI::DrawPlayerStatusBox(Rectangle r, const Player& p) const {
+    DrawRectangleRec(r, CREAM);
+    DrawRectangleLinesEx(r, 4, INK);
+
+    // Cabecera: Nombre y Nivel
+    DrawText(TextToUpper(p.name.c_str()), static_cast<int>(r.x) + 14, static_cast<int>(r.y) + 8, 20, INK);
+    const char* lv = TextFormat("Nv.%d", p.level);
+    DrawText(lv, static_cast<int>(r.x + r.width) - 14 - MeasureText(lv, 20),
+        static_cast<int>(r.y) + 8, 20, INK);
+
+    // Barra HP
+    DrawText("HP", static_cast<int>(r.x) + 14, static_cast<int>(r.y) + 34, 14, { 210, 130, 20, 255 });
+    DrawHpBar({ r.x + 44, r.y + 34, r.width - 60, 12 }, p.hp, p.maxHp);
+    const char* hpNums = TextFormat("%d / %d", p.hp, p.maxHp);
+    DrawText(hpNums, static_cast<int>(r.x + r.width) - 14 - MeasureText(hpNums, 13),
+        static_cast<int>(r.y) + 48, 13, INK);
+
+    // Barra MP
+    DrawText("MP", static_cast<int>(r.x) + 14, static_cast<int>(r.y) + 64, 14, { 40, 90, 200, 255 });
+    DrawMpBar({ r.x + 44, r.y + 64, r.width - 60, 12 }, p.mp, p.maxMp);
+    const char* mpNums = TextFormat("%d / %d", p.mp, p.maxMp);
+    DrawText(mpNums, static_cast<int>(r.x + r.width) - 14 - MeasureText(mpNums, 13),
+        static_cast<int>(r.y) + 78, 13, INK);
+
+    // Barra EXP
+    DrawText("EXP", static_cast<int>(r.x) + 14, static_cast<int>(r.y) + 94, 13, { 140, 80, 210, 255 });
+    DrawExpBar({ r.x + 44, r.y + 96, r.width - 60, 9 }, p.exp, p.expNext);
+    const char* expNums = TextFormat("%d / %d", p.exp, p.expNext);
+    DrawText(expNums, static_cast<int>(r.x + r.width) - 14 - MeasureText(expNums, 12),
+        static_cast<int>(r.y) + 107, 12, INK);
 }
 
 void CombatUI::Draw(const Player& player, const Enemy& enemy,
@@ -72,10 +113,10 @@ void CombatUI::Draw(const Player& player, const Enemy& enemy,
 
     // ----- Cajas de estado (esquinas) -----
     DrawStatusBox({ 20, 20, 340, 80 }, enemy, false);
-    DrawStatusBox({ 600, 270, 340, 104 }, player, true);
+    DrawPlayerStatusBox({ 600, 255, 340, 125 }, player);
 
     DrawText(TextFormat("%s: %d MP  |  Pociones: %d", player.GetSkillName(), player.GetSkillCost(), player.potions),
-        610, 388, 16, WHITE);
+        610, 386, 15, WHITE);
 
     // ----- Panel inferior -----
     DrawRectangle(0, 400, 960, 140, { 30, 35, 50, 255 });
@@ -123,13 +164,12 @@ int CombatUI::GetHoveredButton(Vector2 point) const {
 }
 
 PlayerAction CombatUI::GetActionAt(Vector2 point) const {
-    int i = GetHoveredButton(point);
-    return i >= 0 ? static_cast<PlayerAction>(i) : PlayerAction::NONE;
+    int h = GetHoveredButton(point);
+    if (h >= 0) return static_cast<PlayerAction>(h);
+    return PlayerAction::NONE;
 }
 
 Rectangle CombatUI::GetButtonRect(int index) const {
-    if (index >= 0 && index < 4) {
-        return buttons[index];
-    }
+    if (index >= 0 && index < 4) return buttons[index];
     return { 0.0f, 0.0f, 0.0f, 0.0f };
 }

@@ -56,13 +56,13 @@ const HeroClassData& GetHeroClassData(HeroClass type) {
 // ---------- Tabla de especies de monstruos ----------
 const std::vector<MonsterSpecies>& GetSpecies() {
     static const std::vector<MonsterSpecies> table = {
-        // marca nombre        nv  hp  atk def boss  gate art  color cuerpo        color claro
-        { 'A', "Slime",        1,  40, 10, 2, false, -1, 0,{ 80, 200, 90, 255 },{ 170, 240, 150, 255 } },
-        { 'B', "Murcielago",   2,  55, 13, 3, false,  0, 1,{ 130, 90, 190, 255 },{ 190, 150, 240, 255 } },
-        { 'C', "Goblin",       3,  70, 16, 4, false, -1, 2,{ 110, 160, 60, 255 },{ 170, 210, 100, 255 } },
-        { 'D', "Lobo",         4,  90, 20, 5, false,  1, 3,{ 130, 130, 145, 255 },{ 190, 190, 205, 255 } },
-        { 'E', "Esqueleto",    5, 105, 24, 6, false, -1, 2,{ 225, 225, 205, 255 },{ 250, 250, 240, 255 } },
-        { 'F', "Dragon",       7, 160, 30, 8, true,  -1, 4,{ 200, 50, 60, 255 },{ 250, 130, 110, 255 } },
+        // marca nombre        nv  hp  atk def boss  gate art  color cuerpo          color claro           exp
+        { 'A', "Slime",        1,  40, 10, 2, false, -1, 0, { 80, 200, 90, 255 },  { 170, 240, 150, 255 }, 25 },
+        { 'B', "Murcielago",   2,  55, 13, 3, false,  0, 1, { 130, 90, 190, 255 }, { 190, 150, 240, 255 }, 50 },
+        { 'C', "Goblin",       3,  70, 16, 4, false, -1, 2, { 110, 160, 60, 255 }, { 170, 210, 100, 255 }, 60 },
+        { 'D', "Lobo",         4,  90, 20, 5, false,  1, 3, { 130, 130, 145, 255 },{ 190, 190, 205, 255 }, 90 },
+        { 'E', "Esqueleto",    5, 105, 24, 6, false, -1, 2, { 225, 225, 205, 255 },{ 250, 250, 240, 255 }, 110 },
+        { 'F', "Dragon",       7, 160, 30, 8, true,  -1, 4, { 200, 50, 60, 255 },  { 250, 130, 110, 255 }, 300 },
     };
     return table;
 }
@@ -97,6 +97,8 @@ Player::Player() : Combatant("Guerrero", 120, 15, 18, 6) {
 void Player::InitClass(HeroClass cls) {
     heroClass = cls;
     level = 1;
+    exp = 0;
+    expNext = 50;
     potions = 3;
     const auto& data = GetHeroClassData(cls);
     name = data.name;
@@ -155,19 +157,58 @@ bool Player::UseSkillCost() {
     return true;
 }
 
-bool Player::UsePotion() {
-    if (!CanUsePotion()) return false;
+int Player::UsePotion() {
+    if (potions <= 0 || hp >= maxHp) {
+        return 0;
+    }
     --potions;
+    const int prevHp = hp;
     Heal(POTION_HEAL);
-    return true;
+    return hp - prevHp;
 }
 
-void Player::LevelUp() {
+ExpResult Player::GainExp(int amount) {
+    ExpResult res;
+    if (amount <= 0) return res;
+
+    exp += amount;
+    while (exp >= expNext) {
+        exp -= expNext;
+        const StatGains g = LevelUp();
+        res.leveledUp = true;
+        res.levelsGained++;
+        res.totalGains.maxHp += g.maxHp;
+        res.totalGains.maxMp += g.maxMp;
+        res.totalGains.atk += g.atk;
+        res.totalGains.def += g.def;
+        expNext = level * 50;
+    }
+    return res;
+}
+
+StatGains Player::LevelUp() {
     ++level;
-    maxHp += 15;
-    maxMp += 5;
-    atk += 3;
-    def += 2;
+    StatGains g;
+    // Crecimiento de estadisticas maximas segun la clase (sin curacion automatica de hp/mp)
+    switch (heroClass) {
+    case HeroClass::WARRIOR:
+        g = { 20, 3, 4, 3 };
+        break;
+    case HeroClass::MAGE:
+        g = { 10, 10, 5, 1 };
+        break;
+    case HeroClass::SCOUT:
+    default:
+        g = { 15, 6, 4, 2 };
+        break;
+    }
+
+    maxHp += g.maxHp;
+    maxMp += g.maxMp;
+    atk += g.atk;
+    def += g.def;
+
+    return g;
 }
 
 void Player::FullRestore() {
@@ -177,13 +218,14 @@ void Player::FullRestore() {
 
 // ---------- Enemy ----------
 Enemy::Enemy(const MonsterSpecies& sp, int col, int row)
-    : Combatant(sp.name, sp.hp, 0, sp.atk, sp.def) {
+    : Combatant(sp.name, sp.hp, 0, sp.atk, sp.def),
+      art(sp.art),
+      bodyColor(sp.body),
+      lightColor(sp.light),
+      isBoss(sp.boss),
+      unlocksWall(sp.gate),
+      expReward(sp.expReward) {
     level = sp.level;
-    isBoss = sp.boss;
-    unlocksWall = sp.gate;
-    art = sp.art;
-    bodyColor = sp.body;
-    lightColor = sp.light;
     body.x = col * TileMap::TILE + 4.0f;
     body.y = row * TileMap::TILE + 4.0f;
     home = Center();

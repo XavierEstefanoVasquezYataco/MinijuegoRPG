@@ -22,5 +22,7 @@ private:
 
     void DrawHpBar(Rectangle r, int value, int maxValue) const;
     void DrawMpBar(Rectangle r, int value, int maxValue) const;
+    void DrawExpBar(Rectangle r, int value, int maxValue) const;
     void DrawStatusBox(Rectangle r, const Combatant& c, bool showMp) const;
+    void DrawPlayerStatusBox(Rectangle r, const Player& p) const;
 };

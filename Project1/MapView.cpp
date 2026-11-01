@@ -415,9 +415,11 @@ void MapView::DrawHUD(const Player& player) const {
 
     DrawText(
         TextFormat(
-            "[%s] Nv.%d  HP %d/%d  MP %d/%d  Pociones: %d",
+            "[%s] Nv.%d (EXP %d/%d)  HP %d/%d  MP %d/%d  Pociones: %d",
             player.GetClassName(),
             player.level,
+            player.exp,
+            player.expNext,
             player.hp,
             player.maxHp,
             player.mp,
@@ -426,13 +428,13 @@ void MapView::DrawHUD(const Player& player) const {
         ),
         16,
         518,
-        16,
+        15,
         GOLD
     );
 
     DrawText(
         "WASD: Mover  |  E: Interactuar  |  P/ESC: Pausa  |  M: Minimapa",
-        450,
+        490,
         520,
         13,
         LIGHTGRAY

@@ -58,6 +58,7 @@ private:
     float mapCooldown = 0.0f;
     bool showMinimap = true;
     bool quit = false;
+    bool combatRewardClaimed = false;
 
     void InitWorld();
     void Reset();

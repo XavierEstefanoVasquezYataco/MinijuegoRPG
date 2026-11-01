@@ -546,6 +546,7 @@ void Game::StartCombat(Enemy* enemy) {
     result = CombatResult::NONE;
     selectedButton = 0;
     timer = 0.0f;
+    combatRewardClaimed = false;
 
     combatLog.clear();
     AddLog("Aparece un " + enemy->name + "!");
@@ -664,14 +665,19 @@ void Game::ExecutePlayerAction(PlayerAction action) {
     }
 
     case PlayerAction::POTION: {
-        if (!player.CanUsePotion()) {
+        if (player.potions <= 0) {
             AddLog("No te quedan pociones!");
             return;
         }
 
-        player.UsePotion();
+        if (player.hp >= player.maxHp) {
+            AddLog("Tu salud ya esta al maximo!");
+            return;
+        }
+
+        const int healed = player.UsePotion();
         AddLog(player.name + " bebe una pocion.");
-        AddLog("Recupera " + std::to_string(Player::POTION_HEAL) + " de vida!");
+        AddLog("Recupera " + std::to_string(healed) + " pts de vida!");
 
         phase = CombatPhase::ENEMY_WAIT;
         timer = 1.0f;
@@ -727,7 +733,31 @@ void Game::CheckCombatEnd() {
     else if (currentEnemy != nullptr && !currentEnemy->IsAlive()) {
         result = CombatResult::PLAYER_WON;
         phase = CombatPhase::END_WAIT;
-        timer = 1.5f;
+
+        if (!combatRewardClaimed) {
+            combatRewardClaimed = true;
+            AddLog(currentEnemy->name + " ha sido derrotado!");
+
+            const int expEarned = currentEnemy->expReward;
+            const ExpResult expRes = player.GainExp(expEarned);
+            AddLog("Obtienes " + std::to_string(expEarned) + " pts de EXP.");
+
+            if (expRes.leveledUp) {
+                AddLog("SUBIDA DE NIVEL! Ahora eres Nv." + std::to_string(player.level) + "!");
+                AddLog("+" + std::to_string(expRes.totalGains.maxHp) + " HP max, +" +
+                       std::to_string(expRes.totalGains.maxMp) + " MP max, +" +
+                       std::to_string(expRes.totalGains.atk) + " ATK, +" +
+                       std::to_string(expRes.totalGains.def) + " DEF");
+                timer = 3.0f;
+            }
+            else {
+                timer = 2.0f;
+            }
+
+            if (currentEnemy->isBoss) {
+                timer = 3.5f;
+            }
+        }
     }
 }
 
@@ -748,9 +778,8 @@ void Game::FinishCombat() {
             }
         }
 
-        // Subida de nivel y recuperacion automatica actuales (se conservan en esta etapa)
-        player.LevelUp();
-        player.FullRestore();
+        // En v2: la EXP y subida de nivel ya ocurrieron en CheckCombatEnd.
+        // Se mantiene la persistencia estricta de HP y MP (sin restauracion automatica).
         state = GameState::MAP;
         mapCooldown = 0.5f;
         break;

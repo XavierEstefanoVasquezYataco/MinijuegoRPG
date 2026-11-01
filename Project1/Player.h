@@ -34,6 +34,7 @@ struct MonsterSpecies {
     int gate;               // compuerta que abre al ser vencido (-1 = ninguna)
     int art;                // 0 blob, 1 murcielago, 2 humanoide, 3 bestia, 4 dragon
     Color body, light;
+    int expReward;          // Puntos de experiencia otorgados al ser derrotado
 };
 
 const std::vector<MonsterSpecies>& GetSpecies();
@@ -57,12 +58,28 @@ public:
     int CalculateDamage(const Combatant& target, float multiplier = 1.0f) const;
 };
 
+struct StatGains {
+    int maxHp = 0;
+    int maxMp = 0;
+    int atk = 0;
+    int def = 0;
+};
+
+struct ExpResult {
+    bool leveledUp = false;
+    int levelsGained = 0;
+    StatGains totalGains;
+};
+
 class Player : public Combatant {
 public:
     HeroClass heroClass = HeroClass::WARRIOR;
     Rectangle body{ 0, 0, 24, 24 };
     float speed = 180.0f;
     int potions = 3;
+
+    int exp = 0;
+    int expNext = 50;
 
     Facing facing = Facing::DOWN;
     bool moving = false;
@@ -85,10 +102,11 @@ public:
 
     bool CanUseSkill() const { return mp >= GetSkillCost(); }
     bool UseSkillCost();
-    bool CanUsePotion() const { return potions > 0; }
-    bool UsePotion();
+    bool CanUsePotion() const { return potions > 0 && hp < maxHp; }
+    int UsePotion(); // Retorna HP efectivamente curado (0 si ya estaba lleno o no habia)
 
-    void LevelUp();
+    ExpResult GainExp(int amount);
+    StatGains LevelUp();
     void FullRestore();
 };
 
@@ -98,6 +116,7 @@ public:
     bool defeated = false;
     bool isBoss = false;
     int unlocksWall = -1;
+    int expReward = 0;
 
     int art = 0;
     Color bodyColor{ 255, 255, 255, 255 };

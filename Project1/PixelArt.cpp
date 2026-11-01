@@ -3,7 +3,7 @@
 
 // Cada sprite: 12x12.  o=contorno  b=cuerpo  l=claro  w=blanco  r=rojo
 // h=pelo/adorno  s=piel  d=azul/cuero  .=transparente
-static const char* ART[9][12] = {
+static const char* ART[12][12] = {
     { // 0 BLOB
         "............",
         "............",
@@ -120,7 +120,46 @@ static const char* ART[9][12] = {
         ".loodddddool",
         "...ob..bo.l.",
         "...ob..bo...",
-        "..ooo..ooo.." }
+        "..ooo..ooo.." },
+    { // 9 ANCIANO
+        "....oooo....",
+        "...ohhhho...",
+        "..ohssssho..",
+        "..ohswwsho..",
+        "...owwwwo...",
+        "...owwwwo...",
+        "..oobbbboo..",
+        ".obobllbobo.",
+        ".obobllbobo.",
+        "..oobbbboo..",
+        "...ob..bo...",
+        "..ooo..ooo.." },
+    { // 10 CURANDERA
+        "....oooo....",
+        "...owwwwo...",
+        "..owsssswo..",
+        "..owswwswo..",
+        "...osssso...",
+        "..oobbbboo..",
+        ".obollllobo.",
+        ".obollllobo.",
+        "..oobbbboo..",
+        "...oddood...",
+        "...odd..dd..",
+        "..ooo..ooo.." },
+    { // 11 CARTEL
+        "............",
+        "..oooooooo..",
+        ".obbbbbbbbo.",
+        ".obllllllbo.",
+        ".obllllllbo.",
+        ".obllllllbo.",
+        ".obbbbbbbbo.",
+        "..oooooooo..",
+        "....obbo....",
+        "....obbo....",
+        "....obbo....",
+        "...oooooo..." }
 };
 
 static Color Palette(char ch, Color body, Color light) {
@@ -139,7 +178,7 @@ static Color Palette(char ch, Color body, Color light) {
 
 void DrawPixelArt(int art, float x, float y, int scale,
     Color body, Color light, bool flipX) {
-    if (art < 0 || art > 8) return;
+    if (art < 0 || art > 11) return;
     for (int r = 0; r < 12; ++r) {
         const char* row = ART[art][r];
         int len = static_cast<int>(std::strlen(row));

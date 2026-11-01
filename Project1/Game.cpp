@@ -39,6 +39,14 @@ void Game::InitWorld() {
         }
     }
 
+    npcs = CreateWorldNPCs();
+    nearbyNpc = nullptr;
+    activeNpc = nullptr;
+    dialogueIndex = 0;
+    currentDialogue.clear();
+    isDialogueConfirmation = false;
+    dialogueChoice = 0;
+
     currentEnemy = nullptr;
     mapCooldown = 0.0f;
     showMinimap = true;
@@ -290,6 +298,10 @@ void Game::Update(float dt) {
         UpdateMap(dt);
         break;
 
+    case GameState::DIALOGUE:
+        UpdateDialogue();
+        break;
+
     case GameState::COMBAT:
         if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE)) {
             Pause();
@@ -341,11 +353,67 @@ void Game::UpdateMap(float dt) {
     if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))  inputDir.x -= 1.0f;
     if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) inputDir.x += 1.0f;
 
-    // Actualiza movimiento del jugador y resuelve colisiones con tiles.
-    player.Update(inputDir, dt, map);
+    // Desplazamiento y orientacion del jugador
+    Vector2 m = player.GetDesiredMove(inputDir, dt);
+    player.moving = (m.x != 0.0f || m.y != 0.0f);
+    if (player.moving) {
+        if (std::fabs(m.x) > std::fabs(m.y)) player.facing = (m.x < 0) ? Facing::LEFT : Facing::RIGHT;
+        else                                 player.facing = (m.y < 0) ? Facing::UP : Facing::DOWN;
+        player.animTimer += dt;
+    } else {
+        player.animTimer = 0.0f;
+    }
+
+    // Movimiento en X con resolucion de colisiones contra tiles y personajes fisicos
+    Rectangle testX = player.body;
+    testX.x += m.x;
+    bool blockedX = map.IsBlocked(testX);
+    if (!blockedX) {
+        for (const auto& npc : npcs) {
+            if (npc.isSolid && CheckCollisionRecs(testX, npc.body)) {
+                blockedX = true;
+                break;
+            }
+        }
+    }
+    if (!blockedX) player.body.x = testX.x;
+
+    // Movimiento en Y con resolucion de colisiones contra tiles y personajes fisicos
+    Rectangle testY = player.body;
+    testY.y += m.y;
+    bool blockedY = map.IsBlocked(testY);
+    if (!blockedY) {
+        for (const auto& npc : npcs) {
+            if (npc.isSolid && CheckCollisionRecs(testY, npc.body)) {
+                blockedY = true;
+                break;
+            }
+        }
+    }
+    if (!blockedY) player.body.y = testY.y;
 
     // Actualiza la posicion de la camara de seguimiento
     UpdateCamera();
+
+    // Deteccion determinista del elemento interactuable mas cercano (radio 46 px)
+    nearbyNpc = nullptr;
+    float minDistance = 46.0f;
+    const Vector2 pc = player.Center();
+    for (const auto& npc : npcs) {
+        const Vector2 nc = npc.Center();
+        const float dx = pc.x - nc.x;
+        const float dy = pc.y - nc.y;
+        const float dist = std::sqrt(dx * dx + dy * dy);
+        if (dist < minDistance) {
+            minDistance = dist;
+            nearbyNpc = &npc;
+        }
+    }
+
+    if (nearbyNpc != nullptr && IsKeyPressed(KEY_E)) {
+        StartDialogue(*nearbyNpc);
+        return;
+    }
 
     // Actualiza la IA simple de los enemigos.
     for (Enemy& enemy : enemies) {
@@ -362,6 +430,105 @@ void Game::UpdateMap(float dt) {
             }
         }
     }
+}
+
+// ------------------------------------------------------------
+// DIALOGOS E INTERACCION CON NPCS
+// ------------------------------------------------------------
+
+void Game::StartDialogue(const NPC& npc) {
+    activeNpc = &npc;
+
+    // Evaluacion de progreso consultando la fuente de verdad existente
+    const bool gate1Open = (map.At(28, 14) == 'p');
+    const bool gate2Open = (map.At(39, 14) == 'p');
+    bool bossDefeated = false;
+    for (const auto& e : enemies) {
+        if (e.isBoss && e.defeated) {
+            bossDefeated = true;
+            break;
+        }
+    }
+
+    currentDialogue = npc.GetDialogue(gate1Open, gate2Open, bossDefeated);
+    dialogueIndex = 0;
+    isDialogueConfirmation = (npc.type == NPCType::HEALER);
+    dialogueChoice = 0; // Por defecto: Si
+    state = GameState::DIALOGUE;
+}
+
+void Game::UpdateDialogue() {
+    if (isDialogueConfirmation) {
+        if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+            dialogueChoice = 0;
+        }
+        if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+            dialogueChoice = 1;
+        }
+
+        const Vector2 mouse = GetMousePosition();
+        const int hovered = dialogueView.GetHoveredChoice(mouse);
+        if (hovered >= 0) {
+            dialogueChoice = hovered;
+        }
+
+        auto applyHeal = [this]() {
+            player.FullRestore();
+            bool repuso = false;
+            if (player.potions < 2) {
+                player.potions = 2;
+                repuso = true;
+            }
+            isDialogueConfirmation = false;
+            currentDialogue = {
+                repuso
+                    ? "Tu salud y mana han sido restaurados al maximo. Tus pociones se han completado a 2."
+                    : "Tu salud y mana han sido restaurados al maximo. Ya contabas con suficientes pociones."
+            };
+            dialogueIndex = 0;
+        };
+
+        auto cancelHeal = [this]() {
+            isDialogueConfirmation = false;
+            currentDialogue = {
+                "Entendido. Vuelve cuando necesites descansar y recuperar tus fuerzas."
+            };
+            dialogueIndex = 0;
+        };
+
+        if (IsKeyPressed(KEY_S)) {
+            applyHeal();
+            return;
+        }
+        if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE)) {
+            cancelHeal();
+            return;
+        }
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || (hovered >= 0 && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) {
+            if (dialogueChoice == 0) applyHeal();
+            else cancelHeal();
+            return;
+        }
+    }
+    else {
+        if (IsKeyPressed(KEY_E) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            dialogueIndex++;
+            if (dialogueIndex >= static_cast<int>(currentDialogue.size())) {
+                EndDialogue();
+            }
+        }
+        else if (IsKeyPressed(KEY_ESCAPE)) {
+            EndDialogue();
+        }
+    }
+}
+
+void Game::EndDialogue() {
+    activeNpc = nullptr;
+    dialogueIndex = 0;
+    currentDialogue.clear();
+    isDialogueConfirmation = false;
+    state = GameState::MAP;
 }
 
 // ------------------------------------------------------------
@@ -650,13 +817,29 @@ void Game::DrawScene(GameState scene) {
     }
 
     case GameState::MAP:
-        mapView.DrawWorld(map, player, enemies, camera);
+        mapView.DrawWorld(map, player, enemies, npcs, camera, nearbyNpc);
 
         if (showMinimap) {
             mapView.DrawMinimap(map, player, enemies, camera);
         }
 
         mapView.DrawHUD(player);
+        break;
+
+    case GameState::DIALOGUE:
+        mapView.DrawWorld(map, player, enemies, npcs, camera, nullptr);
+
+        if (showMinimap) {
+            mapView.DrawMinimap(map, player, enemies, camera);
+        }
+
+        mapView.DrawHUD(player);
+
+        if (activeNpc != nullptr) {
+            const Vector2 mouse = GetMousePosition();
+            const int hovered = isDialogueConfirmation ? dialogueView.GetHoveredChoice(mouse) : -1;
+            dialogueView.Draw(*activeNpc, currentDialogue, dialogueIndex, isDialogueConfirmation, dialogueChoice, hovered);
+        }
         break;
 
     case GameState::COMBAT:

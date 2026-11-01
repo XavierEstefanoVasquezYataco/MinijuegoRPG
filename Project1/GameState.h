@@ -5,6 +5,7 @@ enum class GameState {
     CLASS_SELECT,
     CONTROLS,
     MAP,
+    DIALOGUE,
     COMBAT,
     PAUSED,
     GAME_OVER,

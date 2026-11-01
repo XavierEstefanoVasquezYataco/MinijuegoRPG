@@ -150,6 +150,8 @@
     <ClInclude Include="Player.h" />
     <ClInclude Include="TileMap.h" />
     <ClInclude Include="TitleView.h" />
+    <ClInclude Include="DialogueView.h" />
+    <ClInclude Include="NPC.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CombatUI.cpp" />
@@ -160,6 +162,8 @@
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="TileMap.cpp" />
     <ClCompile Include="TitleView.cpp" />
+    <ClCompile Include="DialogueView.cpp" />
+    <ClCompile Include="NPC.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

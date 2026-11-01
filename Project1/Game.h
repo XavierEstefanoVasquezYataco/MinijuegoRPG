@@ -6,9 +6,11 @@
 #include "GameState.h"
 #include "TileMap.h"
 #include "Player.h"
+#include "NPC.h"
 #include "CombatUI.h"
 #include "MapView.h"
 #include "TitleView.h"
+#include "DialogueView.h"
 
 class Game {
 public:
@@ -30,11 +32,20 @@ private:
     std::vector<Enemy> enemies;
     Enemy* currentEnemy = nullptr;
 
+    std::vector<NPC> npcs;
+    const NPC* nearbyNpc = nullptr;
+    const NPC* activeNpc = nullptr;
+    int dialogueIndex = 0;
+    std::vector<std::string> currentDialogue;
+    bool isDialogueConfirmation = false;
+    int dialogueChoice = 0; // 0 = Si, 1 = No
+
     Camera2D camera{};
 
     CombatUI ui;
     MapView mapView;
     TitleView titleView;
+    DialogueView dialogueView;
 
     std::deque<std::string> combatLog;
     int selectedButton = 0;
@@ -61,12 +72,16 @@ private:
     void UpdateClassSelect();
     void UpdateControls();
     void UpdateMap(float dt);
+    void UpdateDialogue();
     void UpdateCombat(float dt);
     void UpdatePause();
 
     void Pause();
     void Resume();
     void ActivatePause(int option);
+
+    void StartDialogue(const NPC& npc);
+    void EndDialogue();
 
     void StartCombat(Enemy* e);
     void ExecutePlayerAction(PlayerAction a);

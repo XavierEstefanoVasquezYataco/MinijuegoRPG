@@ -325,11 +325,55 @@ void MapView::DrawEnemy(const Enemy& enemy) const {
     );
 }
 
+void MapView::DrawNPC(const NPC& npc, bool isPromptTarget) const {
+    const float centerX = npc.body.x + npc.body.width / 2.0f;
+    const float centerY = npc.body.y + npc.body.height / 2.0f;
+
+    const int scale = 2;
+    const float spriteSize = 12.0f * scale;
+
+    // Sombra en el suelo
+    DrawEllipse(
+        static_cast<int>(centerX),
+        static_cast<int>(npc.body.y + npc.body.height),
+        spriteSize / 2.0f,
+        4.0f,
+        Fade(BLACK, 0.30f)
+    );
+
+    // Sprite en pixel art
+    DrawPixelArt(
+        npc.art,
+        centerX - spriteSize / 2.0f,
+        centerY - spriteSize / 2.0f - 4.0f,
+        scale,
+        npc.bodyColor,
+        npc.lightColor
+    );
+
+    // Etiqueta flotante cuando el jugador esta en radio de interaccion
+    if (isPromptTarget) {
+        const char* prompt = npc.isSign ? "[E] Leer" : "[E] Hablar";
+        const int pw = MeasureText(prompt, 11);
+        const Rectangle badge{
+            centerX - (pw + 14) / 2.0f,
+            centerY - spriteSize / 2.0f - 24.0f,
+            static_cast<float>(pw + 14),
+            18.0f
+        };
+        DrawRectangleRec(badge, Color{ 18, 24, 38, 230 });
+        DrawRectangleLinesEx(badge, 1.5f, GOLD);
+        DrawText(prompt, static_cast<int>(badge.x + 7), static_cast<int>(badge.y + 3), 11, GOLD);
+    }
+}
+
 void MapView::DrawWorld(
     const TileMap& map,
     const Player& player,
     const std::vector<Enemy>& enemies,
-    const Camera2D& camera
+    const std::vector<NPC>& npcs,
+    const Camera2D& camera,
+    const NPC* nearbyNpc
 ) const {
     ClearBackground(BLACK);
 
@@ -347,6 +391,11 @@ void MapView::DrawWorld(
         for (int col = colStart; col <= colEnd; ++col) {
             DrawTile(map, col, row);
         }
+    }
+
+    // Dibujado de NPCs y carteles en el mundo
+    for (const auto& npc : npcs) {
+        DrawNPC(npc, nearbyNpc == &npc);
     }
 
     for (const Enemy& enemy : enemies) {
@@ -382,7 +431,7 @@ void MapView::DrawHUD(const Player& player) const {
     );
 
     DrawText(
-        "WASD / Flechas: Mover  |  P / ESC: Pausa  |  M: Alternar minimapa",
+        "WASD: Mover  |  E: Interactuar  |  P/ESC: Pausa  |  M: Minimapa",
         450,
         520,
         13,

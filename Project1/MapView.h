@@ -3,6 +3,7 @@
 #include "raylib.h"
 #include "TileMap.h"
 #include "Player.h"
+#include "NPC.h"
 
 class MapView {
 public:
@@ -10,7 +11,8 @@ public:
     void Unload();
 
     void DrawWorld(const TileMap& map, const Player& player,
-        const std::vector<Enemy>& enemies, const Camera2D& camera) const;
+        const std::vector<Enemy>& enemies, const std::vector<NPC>& npcs,
+        const Camera2D& camera, const NPC* nearbyNpc = nullptr) const;
     void DrawHUD(const Player& player) const;
     void DrawMinimap(const TileMap& map, const Player& player,
         const std::vector<Enemy>& enemies, const Camera2D& camera) const;
@@ -26,4 +28,5 @@ private:
     void DrawTile(const TileMap& map, int c, int r) const;
     void DrawPlayer(const Player& p) const;
     void DrawEnemy(const Enemy& e) const;
+    void DrawNPC(const NPC& npc, bool isPromptTarget) const;
 };

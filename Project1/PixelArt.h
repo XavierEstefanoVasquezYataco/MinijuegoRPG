@@ -11,6 +11,9 @@ constexpr int ART_HERO_BACK = 5;
 constexpr int ART_WARRIOR = 6;
 constexpr int ART_MAGE = 7;
 constexpr int ART_SCOUT = 8;
+constexpr int ART_ELDER = 9;
+constexpr int ART_HEALER = 10;
+constexpr int ART_SIGN = 11;
 
 void DrawPixelArt(int art, float x, float y, int scale,
     Color body, Color light, bool flipX = false);

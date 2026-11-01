@@ -54,8 +54,8 @@ public:
 
     Player();
 
-    Vector2 GetDesiredMove(float dt) const;
-    void Update(float dt, const TileMap& map);
+    Vector2 GetDesiredMove(Vector2 inputDir, float dt) const;
+    void Update(Vector2 inputDir, float dt, const TileMap& map);
     Vector2 Center() const { return { body.x + body.width / 2, body.y + body.height / 2 }; }
 
     bool CanUseSkill() const { return mp >= SKILL_COST; }

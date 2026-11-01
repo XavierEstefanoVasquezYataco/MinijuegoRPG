@@ -97,8 +97,8 @@ void MapView::DrawPlayer(const Player& player) const {
     DrawEllipse(
         static_cast<int>(centerX),
         static_cast<int>(bottomY),
-        11,
-        4,
+        11.0f,
+        4.0f,
         Fade(BLACK, 0.30f)
     );
 
@@ -218,8 +218,8 @@ void MapView::DrawEnemy(const Enemy& enemy) const {
     DrawEllipse(
         static_cast<int>(centerX),
         static_cast<int>(enemy.body.y + enemy.body.height),
-        static_cast<int>(spriteSize / 2.0f),
-        4,
+        spriteSize / 2.0f,
+        4.0f,
         Fade(BLACK, 0.30f)
     );
 

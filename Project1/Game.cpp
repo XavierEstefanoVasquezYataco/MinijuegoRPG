@@ -181,8 +181,15 @@ void Game::UpdateMap(float dt) {
         mapCooldown -= dt;
     }
 
+    // Lectura de entrada del jugador en el controlador (MVC)
+    Vector2 inputDir{ 0.0f, 0.0f };
+    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))    inputDir.y -= 1.0f;
+    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))  inputDir.y += 1.0f;
+    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))  inputDir.x -= 1.0f;
+    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) inputDir.x += 1.0f;
+
     // Actualiza movimiento del jugador y resuelve colisiones con tiles.
-    player.Update(dt, map);
+    player.Update(inputDir, dt, map);
 
     // Actualiza la IA simple de los enemigos.
     for (Enemy& enemy : enemies) {
@@ -256,12 +263,12 @@ void Game::UpdateCombat(float dt) {
             action = static_cast<PlayerAction>(selectedButton);
         }
 
-        const PlayerAction clickedAction =
-            ui.GetClickedAction(GetMousePosition());
+        const Vector2 mousePos = GetMousePosition();
+        const int hovered = ui.GetHoveredButton(mousePos);
 
-        if (clickedAction != PlayerAction::NONE) {
-            selectedButton = static_cast<int>(clickedAction);
-            action = clickedAction;
+        if (hovered >= 0 && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            selectedButton = hovered;
+            action = static_cast<PlayerAction>(hovered);
         }
 
         if (action != PlayerAction::NONE) {
@@ -515,12 +522,18 @@ void Game::DrawScene(GameState scene) {
 
     case GameState::COMBAT:
         if (currentEnemy != nullptr) {
+            const Vector2 mousePos = GetMousePosition();
+            const int hovered = (phase == CombatPhase::PLAYER_TURN)
+                ? ui.GetHoveredButton(mousePos)
+                : -1;
+
             ui.Draw(
                 player,
                 *currentEnemy,
                 combatLog,
                 selectedButton,
-                phase == CombatPhase::PLAYER_TURN
+                phase == CombatPhase::PLAYER_TURN,
+                hovered
             );
         }
         break;

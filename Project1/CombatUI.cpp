@@ -54,14 +54,14 @@ void CombatUI::DrawStatusBox(Rectangle r, const Combatant& c, bool showMp) const
 
 void CombatUI::Draw(const Player& player, const Enemy& enemy,
     const std::deque<std::string>& log,
-    int selected, bool menuEnabled) const {
+    int selected, bool menuEnabled, int hovered) const {
     // ----- Escenario -----
     DrawRectangleGradientV(0, 0, 960, 240, { 120, 200, 245, 255 }, { 210, 238, 250, 255 });
     DrawRectangleGradientV(0, 230, 960, 180, { 120, 200, 105, 255 }, { 70, 150, 80, 255 });
 
     // Plataformas
-    DrawEllipse(740, 255, 140, 30, { 160, 215, 135, 255 });
-    DrawEllipse(240, 395, 160, 34, { 150, 210, 125, 255 });
+    DrawEllipse(740, 255, 140.0f, 30.0f, { 160, 215, 135, 255 });
+    DrawEllipse(240, 395, 160.0f, 34.0f, { 150, 210, 125, 255 });
 
     // Sprites con pequeno vaiven
     float bob = std::sin(static_cast<float>(GetTime()) * 3.0f) * 3.0f;
@@ -96,10 +96,8 @@ void CombatUI::Draw(const Player& player, const Enemy& enemy,
     DrawRectangleRec(menuBox, { 250, 250, 250, 255 });
     DrawRectangleLinesEx(menuBox, 4, { 110, 100, 160, 255 });
 
-    Vector2 mouse = GetMousePosition();
-    int hover = GetHoveredButton(mouse);
     for (int i = 0; i < 4; ++i) {
-        bool sel = (i == selected) || (i == hover);
+        bool sel = (i == selected) || (i == hovered);
         if (sel && menuEnabled)
             DrawRectangleRounded({ buttons[i].x, buttons[i].y, buttons[i].width, buttons[i].height },
                 0.3f, 6, { 255, 225, 120, 255 });
@@ -112,14 +110,23 @@ void CombatUI::Draw(const Player& player, const Enemy& enemy,
     }
 }
 
-int CombatUI::GetHoveredButton(Vector2 mouse) const {
-    for (int i = 0; i < 4; ++i)
-        if (CheckCollisionPointRec(mouse, buttons[i])) return i;
+int CombatUI::GetHoveredButton(Vector2 point) const {
+    for (int i = 0; i < 4; ++i) {
+        if (CheckCollisionPointRec(point, buttons[i])) {
+            return i;
+        }
+    }
     return -1;
 }
 
-PlayerAction CombatUI::GetClickedAction(Vector2 mouse) const {
-    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) return PlayerAction::NONE;
-    int i = GetHoveredButton(mouse);
+PlayerAction CombatUI::GetActionAt(Vector2 point) const {
+    int i = GetHoveredButton(point);
     return i >= 0 ? static_cast<PlayerAction>(i) : PlayerAction::NONE;
+}
+
+Rectangle CombatUI::GetButtonRect(int index) const {
+    if (index >= 0 && index < 4) {
+        return buttons[index];
+    }
+    return { 0.0f, 0.0f, 0.0f, 0.0f };
 }

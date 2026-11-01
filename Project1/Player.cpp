@@ -42,27 +42,24 @@ Player::Player() : Combatant("Heroe", 100, 30, 14, 5) {
     body.y = 8 * TileMap::TILE + 4;
 }
 
-Vector2 Player::GetDesiredMove(float dt) const {
-    Vector2 d{ 0, 0 };
-    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))    d.y -= 1;
-    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))  d.y += 1;
-    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))  d.x -= 1;
-    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) d.x += 1;
-    float len = std::sqrt(d.x * d.x + d.y * d.y);
-    if (len > 0) { d.x = d.x / len * speed * dt; d.y = d.y / len * speed * dt; }
-    return d;
+Vector2 Player::GetDesiredMove(Vector2 inputDir, float dt) const {
+    float len = std::sqrt(inputDir.x * inputDir.x + inputDir.y * inputDir.y);
+    if (len > 0.0f) {
+        return { (inputDir.x / len) * speed * dt, (inputDir.y / len) * speed * dt };
+    }
+    return { 0.0f, 0.0f };
 }
 
-void Player::Update(float dt, const TileMap& map) {
-    Vector2 m = GetDesiredMove(dt);
-    moving = (m.x != 0 || m.y != 0);
+void Player::Update(Vector2 inputDir, float dt, const TileMap& map) {
+    Vector2 m = GetDesiredMove(inputDir, dt);
+    moving = (m.x != 0.0f || m.y != 0.0f);
     if (moving) {
         if (std::fabs(m.x) > std::fabs(m.y)) facing = (m.x < 0) ? Facing::LEFT : Facing::RIGHT;
         else                                 facing = (m.y < 0) ? Facing::UP : Facing::DOWN;
         animTimer += dt;
     }
     else {
-        animTimer = 0;
+        animTimer = 0.0f;
     }
     map.Move(body, m);
 }

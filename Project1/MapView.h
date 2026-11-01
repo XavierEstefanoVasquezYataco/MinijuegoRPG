@@ -17,6 +17,7 @@ public:
 
     void DrawPause(int selected) const;
     int GetPauseButton(Vector2 mouse) const;   // -1 si ninguno
+    Rectangle PauseButton(int i) const;
 
 private:
     Texture2D heroSheet{};
@@ -25,5 +26,4 @@ private:
     void DrawTile(const TileMap& map, int c, int r) const;
     void DrawPlayer(const Player& p) const;
     void DrawEnemy(const Enemy& e) const;
-    Rectangle PauseButton(int i) const;
 };

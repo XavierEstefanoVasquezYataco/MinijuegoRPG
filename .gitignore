@@ -1,0 +1,40 @@
+# Visual Studio 2022 y C++ .gitignore
+
+# Archivos de usuario y preferencias locales
+*.user
+*.userosscache
+*.sln.docstates
+
+# Salidas de compilación y temporales
+x64/
+x86/
+Debug/
+Release/
+[Bb]in/
+[Oo]bj/
+
+# Artefactos directos de compilación
+*.obj
+*.pdb
+*.exe
+*.ilk
+*.lib
+*.exp
+*.tlog
+*.lastbuildstate
+*.idb
+
+# Directorios de Visual Studio y caché
+.vs/
+*.suo
+*.userprefs
+*.db
+*.opendb
+*.ipch
+
+# Registros
+*.log
+
+# Paquetes NuGet
+packages/
+*.nupkg

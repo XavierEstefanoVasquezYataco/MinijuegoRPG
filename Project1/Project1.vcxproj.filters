@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Archivos de origen">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Archivos de encabezado">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Archivos de recursos">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Modelo">
+      <UniqueIdentifier>{b5a007a6-532d-4da1-bf0a-dc7506a1a181}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Vistas">
+      <UniqueIdentifier>{a2d7eac2-7d23-48e2-b992-9c198f98d9ad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Controladores">
+      <UniqueIdentifier>{1887d438-2595-4233-8c86-5488930ccddd}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GameState.h">
+      <Filter>Modelo</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
+      <Filter>Modelo</Filter>
+    </ClInclude>
+    <ClInclude Include="CombatUI.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
+    <ClInclude Include="Game.h">
+      <Filter>Controladores</Filter>
+    </ClInclude>
+    <ClInclude Include="TileMap.h">
+      <Filter>Modelo</Filter>
+    </ClInclude>
+    <ClInclude Include="MapView.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
+    <ClInclude Include="PixelArt.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Player.cpp">
+      <Filter>Modelo</Filter>
+    </ClCompile>
+    <ClCompile Include="CombatUI.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="Game.cpp">
+      <Filter>Controladores</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Archivos de origen</Filter>
+    </ClCompile>
+    <ClCompile Include="TileMap.cpp">
+      <Filter>Modelo</Filter>
+    </ClCompile>
+    <ClCompile Include="MapView.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="PixelArt.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

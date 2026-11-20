@@ -38,3 +38,6 @@ Release/
 # Paquetes NuGet
 packages/
 *.nupkg
+
+# Partida guardada local
+savegame.dat

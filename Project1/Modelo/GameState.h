@@ -28,7 +28,7 @@
  * - MAP: Modo supramundo; exploración 2D, movimiento y cámara en tiempo real.
  * - DIALOGUE: Modo de interacción con NPCs o lectura de carteles (pausa el movimiento).
  * - COMBAT: Escena de batalla por turnos contra un enemigo.
- * - PAUSED: Menú superpuesto de pausa (Reanudar, Reiniciar, Volver al título).
+ * - PAUSED: Menú superpuesto de pausa (Reanudar, Guardar partida, Reiniciar, Volver al título).
  * - GAME_OVER: Pantalla de derrota cuando la salud del héroe llega a 0.
  * - VICTORY: Pantalla final de victoria tras vencer al Dragón en las Ruinas.
  */

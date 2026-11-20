@@ -18,6 +18,20 @@
 #include <string>
 #include "raylib.h"
 
+namespace {
+    MusicTrack TrackForState(GameState s) {
+        switch (s) {
+        case GameState::MAP:
+        case GameState::DIALOGUE:
+            return MusicTrack::MAP_THEME;
+        case GameState::COMBAT:
+            return MusicTrack::COMBAT_THEME;
+        default:
+            return MusicTrack::MENU_THEME;
+        }
+    }
+}
+
 // ------------------------------------------------------------
 // CONSTRUCTOR / DESTRUCTOR / BUCLE PRINCIPAL
 // ------------------------------------------------------------
@@ -40,6 +54,7 @@ Game::Game() {
     // para centralizar el comportamiento de Escape en el controlador
     SetExitKey(KEY_NULL);
 
+    audio.Init();
     mapView.Load();
     InitWorld();
     state = GameState::TITLE_SCREEN;
@@ -50,6 +65,7 @@ Game::Game() {
  */
 Game::~Game() {
     mapView.Unload();
+    audio.Shutdown();
     CloseWindow();
 }
 
@@ -163,6 +179,7 @@ void Game::Pause() {
     state = GameState::PAUSED;
     pauseSel = 0;
     confirmExit = false;
+    saveMsgTimer = 0.0f;
 }
 
 /**
@@ -175,21 +192,30 @@ void Game::Resume() {
 
 /**
  * @brief Ejecuta la acción seleccionada en el menú de pausa.
- * @param option 0 para Reanudar, 1 para Reiniciar con el mismo héroe, 2 para Volver al Título.
+ * @param option 0 para Reanudar, 1 para Guardar partida, 2 para Reiniciar con el mismo héroe, 3 para Volver al Título.
  */
 void Game::ActivatePause(int option) {
     switch (option) {
     case 0: // Reanudar
         Resume();
         break;
-    case 1: { // Reiniciar (conserva la clase elegida)
+    case 1:
+        if (prevState == GameState::MAP) {
+            saveMsg = SaveGame() ? "Partida guardada" : "No se pudo guardar la partida";
+        }
+        else {
+            saveMsg = "Solo se puede guardar en el mapa";
+        }
+        saveMsgTimer = 2.5f;
+        break;
+    case 2: { // Reiniciar (conserva la clase elegida)
         const HeroClass currentClass = player.heroClass;
         Reset();
         player.InitClass(currentClass);
         Resume();
         break;
     }
-    case 2: // Volver al título (solicita confirmación para evitar pérdidas accidentales)
+    case 3: // Volver al título (solicita confirmación para evitar pérdidas accidentales)
         confirmExit = true;
         break;
     default:
@@ -221,10 +247,10 @@ void Game::UpdatePause() {
 
     // Navegación vertical por opciones
     if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
-        pauseSel = (pauseSel + 1) % 3;
+        pauseSel = (pauseSel + 1) % 4;
     }
     if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
-        pauseSel = (pauseSel + 2) % 3;
+        pauseSel = (pauseSel + 3) % 4;
     }
 
     const int hovered = mapView.GetPauseButton(GetMousePosition());
@@ -276,9 +302,10 @@ void Game::UpdateTitle() {
             classSel = 0;
             state = GameState::CLASS_SELECT;
             break;
-        case 1: // Continuar (desactivado temporalmente)
-            if (continueAvailable) {
-                // Se integrará con el sistema de guardado en la Etapa 7
+        case 1: // Continuar
+            if (continueAvailable && !LoadGame()) {
+                continueAvailable = false;
+                titleSel = 0;
             }
             break;
         case 2: // Controles
@@ -366,6 +393,20 @@ void Game::UpdateControls() {
  * @param dt Tiempo transcurrido del fotograma en segundos.
  */
 void Game::Update(float dt) {
+    if (state != lastState) {
+        if (state == GameState::TITLE_SCREEN) {
+            continueAvailable = SaveSystem::Exists();
+        }
+        lastState = state;
+    }
+
+    if (saveMsgTimer > 0.0f) {
+        saveMsgTimer -= dt;
+    }
+
+    audio.Play(TrackForState(state == GameState::PAUSED ? prevState : state));
+    audio.Update();
+
     switch (state) {
     case GameState::TITLE_SCREEN:
         UpdateTitle();
@@ -976,6 +1017,80 @@ void Game::FinishCombat() {
 }
 
 // ------------------------------------------------------------
+// GUARDADO Y CARGA DE PARTIDA
+// ------------------------------------------------------------
+
+bool Game::SaveGame() const {
+    SaveData data;
+    data.heroClass = static_cast<int>(player.heroClass);
+    data.level = player.level;
+    data.hp = player.hp;
+    data.maxHp = player.maxHp;
+    data.mp = player.mp;
+    data.maxMp = player.maxMp;
+    data.atk = player.atk;
+    data.def = player.def;
+    data.potions = player.potions;
+    data.exp = player.exp;
+    data.expNext = player.expNext;
+    data.posX = player.body.x;
+    data.posY = player.body.y;
+    data.facing = static_cast<int>(player.facing);
+    data.showMinimap = showMinimap;
+
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        if (enemies[i].defeated) {
+            data.defeatedEnemies.push_back(static_cast<int>(i));
+        }
+    }
+
+    return SaveSystem::Save(data);
+}
+
+bool Game::LoadGame() {
+    SaveData data;
+    if (!SaveSystem::Load(data)) {
+        return false;
+    }
+
+    Reset();
+    player.InitClass(static_cast<HeroClass>(data.heroClass));
+    player.level = data.level;
+    player.hp = data.hp;
+    player.maxHp = data.maxHp;
+    player.mp = data.mp;
+    player.maxMp = data.maxMp;
+    player.atk = data.atk;
+    player.def = data.def;
+    player.potions = data.potions;
+    player.exp = data.exp;
+    player.expNext = data.expNext;
+    player.facing = static_cast<Facing>(data.facing);
+    player.moving = false;
+
+    const float maxX = static_cast<float>(TileMap::COLS * TileMap::TILE) - player.body.width;
+    const float maxY = static_cast<float>(TileMap::ROWS * TileMap::TILE) - player.body.height;
+    player.body.x = std::clamp(data.posX, 0.0f, maxX);
+    player.body.y = std::clamp(data.posY, 0.0f, maxY);
+
+    showMinimap = data.showMinimap;
+
+    for (int index : data.defeatedEnemies) {
+        if (index >= 0 && index < static_cast<int>(enemies.size())) {
+            Enemy& enemy = enemies[index];
+            enemy.defeated = true;
+            if (enemy.unlocksWall >= 0) {
+                map.OpenGate(enemy.unlocksWall);
+            }
+        }
+    }
+
+    UpdateCamera();
+    state = GameState::MAP;
+    return true;
+}
+
+// ------------------------------------------------------------
 // RENDERIZADO GENERAL Y PANTALLAS FINALES
 // ------------------------------------------------------------
 
@@ -1071,6 +1186,10 @@ void Game::Draw() {
         // Dibuja la escena de fondo congelada antes de superponer la pausa
         DrawScene(prevState);
         mapView.DrawPause(pauseSel);
+        if (saveMsgTimer > 0.0f && !confirmExit) {
+            const int msgWidth = MeasureText(saveMsg, 22);
+            DrawText(saveMsg, (SCREEN_W - msgWidth) / 2, 478, 22, GOLD);
+        }
         if (confirmExit) {
             DrawConfirmExit();
         }

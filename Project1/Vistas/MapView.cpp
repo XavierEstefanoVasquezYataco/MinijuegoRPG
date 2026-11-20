@@ -17,8 +17,9 @@
 #include <cmath>
 
 /// Opciones textuales del menú de pausa.
-static const char* PAUSE_LABELS[3] = {
+static const char* PAUSE_LABELS[4] = {
     "Reanudar",
+    "Guardar Partida",
     "Reiniciar",
     "Volver al Titulo"
 };
@@ -575,14 +576,14 @@ void MapView::DrawMinimap(
 Rectangle MapView::PauseButton(int index) const {
     return {
         350.0f,
-        230.0f + index * 65.0f,
+        208.0f + index * 58.0f,
         260.0f,
         50.0f
     };
 }
 
 int MapView::GetPauseButton(Vector2 mouse) const {
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 4; ++i) {
         if (CheckCollisionPointRec(mouse, PauseButton(i))) {
             return i;
         }
@@ -604,7 +605,7 @@ void MapView::DrawPause(int selected) const {
         GOLD
     );
 
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 4; ++i) {
         const Rectangle button = PauseButton(i);
         const bool isSelected = (i == selected);
 

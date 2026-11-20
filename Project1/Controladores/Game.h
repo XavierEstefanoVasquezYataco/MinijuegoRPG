@@ -37,6 +37,8 @@
 #include "../Vistas/TitleView.h"
 #include "../Vistas/DialogueView.h"
 #include "../Vistas/CombatPresentation.h"
+#include "AudioManager.h"
+#include "SaveSystem.h"
 
 /**
  * @class Game
@@ -106,12 +108,16 @@ private:
     int titleSel = 0;                           ///< Opción seleccionada en la pantalla de título.
     int classSel = 0;                           ///< Héroe seleccionado en la pantalla de clases.
     bool confirmExit = false;                   ///< Bandera que activa el cuadro de confirmación al salir.
-    bool continueAvailable = false;             ///< Deshabilitado hasta implementar guardado (Etapa 7).
+    bool continueAvailable = false;             ///< true si existe una partida guardada válida que se pueda continuar.
     float timer = 0.0f;                         ///< Temporizador para retardos de turnos en combate.
     float mapCooldown = 0.0f;                   ///< Tiempo de gracia tras escapar para evitar re-iniciar combates inmediatos.
     bool showMinimap = true;                    ///< Alternable con la tecla M.
     bool quit = false;                          ///< Si es true, finaliza el ciclo `Run()`.
     bool combatRewardClaimed = false;           ///< Garantiza entregar EXP y subidas de nivel una sola vez por combate.
+    GameState lastState = GameState::MAP;
+    float saveMsgTimer = 0.0f;
+    const char* saveMsg = "";
+    AudioManager audio;
 
     // Métodos de inicialización y reinicio
     void InitWorld();
@@ -137,6 +143,8 @@ private:
     void Pause();
     void Resume();
     void ActivatePause(int option);
+    bool SaveGame() const;
+    bool LoadGame();
 
     // Gestión de Diálogos
     void StartDialogue(const NPC& npc);

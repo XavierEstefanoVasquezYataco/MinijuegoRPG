@@ -83,6 +83,9 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(ProjectDir)assets" xcopy /E /I /Y /Q "$(ProjectDir)assets" "$(OutDir)assets"</Command>
+    </PostBuildEvent>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
     </Manifest>
@@ -102,6 +105,9 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(ProjectDir)assets" xcopy /E /I /Y /Q "$(ProjectDir)assets" "$(OutDir)assets"</Command>
+    </PostBuildEvent>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
     </Manifest>
@@ -119,6 +125,9 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(ProjectDir)assets" xcopy /E /I /Y /Q "$(ProjectDir)assets" "$(OutDir)assets"</Command>
+    </PostBuildEvent>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
     </Manifest>
@@ -138,6 +147,9 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(ProjectDir)assets" xcopy /E /I /Y /Q "$(ProjectDir)assets" "$(OutDir)assets"</Command>
+    </PostBuildEvent>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
     </Manifest>
@@ -157,6 +169,8 @@
     <ClInclude Include="Vistas\TitleView.h" />
     <ClInclude Include="Vistas\DialogueView.h" />
     <ClInclude Include="Controladores\Game.h" />
+    <ClInclude Include="Controladores\SaveSystem.h" />
+    <ClInclude Include="Controladores\AudioManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -170,6 +184,8 @@
     <ClCompile Include="Vistas\TitleView.cpp" />
     <ClCompile Include="Vistas\DialogueView.cpp" />
     <ClCompile Include="Controladores\Game.cpp" />
+    <ClCompile Include="Controladores\SaveSystem.cpp" />
+    <ClCompile Include="Controladores\AudioManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

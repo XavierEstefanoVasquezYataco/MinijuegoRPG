@@ -60,6 +60,12 @@
     <ClInclude Include="Controladores\Game.h">
       <Filter>Controladores</Filter>
     </ClInclude>
+    <ClInclude Include="Controladores\SaveSystem.h">
+      <Filter>Controladores</Filter>
+    </ClInclude>
+    <ClInclude Include="Controladores\AudioManager.h">
+      <Filter>Controladores</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -93,6 +99,12 @@
       <Filter>Vistas</Filter>
     </ClCompile>
     <ClCompile Include="Controladores\Game.cpp">
+      <Filter>Controladores</Filter>
+    </ClCompile>
+    <ClCompile Include="Controladores\SaveSystem.cpp">
+      <Filter>Controladores</Filter>
+    </ClCompile>
+    <ClCompile Include="Controladores\AudioManager.cpp">
       <Filter>Controladores</Filter>
     </ClCompile>
   </ItemGroup>

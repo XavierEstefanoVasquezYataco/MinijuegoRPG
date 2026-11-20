@@ -1,9 +1,42 @@
-#include "NPC.h"
-#include "PixelArt.h"
+﻿/**
+ * @file NPC.cpp
+ * @brief Implementación de las respuestas de diálogo progresivas y la inicialización de NPCs.
+ *
+ * Capa de Arquitectura: Modelo (Model) - Narrativa y Población del Mundo.
+ *
+ * Propósito y Responsabilidades:
+ * - Implementar la máquina de diálogo condicional para cada arquetipo de NPC y cartel.
+ * - Ubicar con precisión a los personajes no jugadores y carteles en coordenadas de cuadrícula.
+ *
+ * Observaciones Arquitectónicas sobre Responsabilidades Mezcladas:
+ * - Este archivo incluye `../Vistas/PixelArt.h` para acceder a constantes enteras de identificación
+ *   de sprites (`ART_ELDER`, `ART_HEALER`, `ART_WARRIOR`, etc.). Esto representa un acoplamiento
+ *   entre la definición de datos del modelo y los identificadores de recursos de la vista,
+ *   lo cual se documenta aquí como observación pedagógica sin alterar el comportamiento.
+ */
 
+#include "NPC.h"
+#include "../Vistas/PixelArt.h"
+
+/**
+ * @brief Devuelve la lista secuencial de frases que el NPC expresará en el diálogo activo.
+ *
+ * Flujo por arquetipo:
+ * - MENTOR: Aldor adapta su consejo pedagógico según las compuertas abiertas o si el jefe cayó.
+ * - HEALER: Elena plantea la pregunta de restauración de salud y maná.
+ * - GUARD: Rurik informa si la primera compuerta está cerrada o felicita por abrirla.
+ * - EXPLORER: Varek advierte sobre las trampas del sanctum final antes de entrar a las Ruinas.
+ * - SIGN: Carteles informativos que leen su texto según el identificador de cartel (`id`).
+ *
+ * @param gate1Open Indica si el Murciélago fue vencido y la compuerta 1 abierta.
+ * @param gate2Open Indica si el Lobo fue vencido y la compuerta 2 abierta.
+ * @param bossDefeated Indica si el Dragón final fue eliminado.
+ * @return std::vector<std::string> Conjunto de párrafos para presentar al usuario.
+ */
 std::vector<std::string> NPC::GetDialogue(bool gate1Open, bool gate2Open, bool bossDefeated) const {
     switch (type) {
     case NPCType::MENTOR:
+        // Caso de máxima victoria: el jefe final ha caído
         if (bossDefeated) {
             return {
                 "¡Has derrotado al temible Dragon!",
@@ -11,6 +44,7 @@ std::vector<std::string> NPC::GetDialogue(bool gate1Open, bool gate2Open, bool b
                 "Tu valentia sera recordada por siempre en los cantos de esta aldea."
             };
         }
+        // Ambas compuertas abiertas: el camino a las ruinas es transitable
         if (gate2Open) {
             return {
                 "¡Las dos compuertas ancestrales han sido abiertas!",
@@ -19,6 +53,7 @@ std::vector<std::string> NPC::GetDialogue(bool gate1Open, bool gate2Open, bool b
                 "Encuentra al Dragon en el sanctum final y destruyelo. ¡Todo el pueblo confia en ti!"
             };
         }
+        // Primera compuerta abierta: el héroe se encuentra en el Bosque
         if (gate1Open) {
             return {
                 "¡Gran avance! Has vencido al Murcielago y quebrado la primera compuerta.",
@@ -26,7 +61,7 @@ std::vector<std::string> NPC::GetDialogue(bool gate1Open, bool gate2Open, bool b
                 "Para entrar a las ruinas, busca y vence al feroz Lobo guardian de las sombras."
             };
         }
-        // Inicio
+        // Estado inicial de la partida: bienvenida y tutorial básico
         return {
             "Saludos, aprendiz. Soy Aldor, mentor de esta aldea.",
             "Para moverte usa WASD o las Flechas. Con [E] interactuas con personas y carteles.",
@@ -67,6 +102,7 @@ std::vector<std::string> NPC::GetDialogue(bool gate1Open, bool gate2Open, bool b
 
     case NPCType::SIGN:
     default:
+        // Carteles de señalización y orientación geográfica
         if (id == "sign_road") {
             return {
                 "--- CAMINO PRINCIPAL AL ESTE ---",
@@ -99,6 +135,21 @@ std::vector<std::string> NPC::GetDialogue(bool gate1Open, bool gate2Open, bool b
     }
 }
 
+/**
+ * @brief Inicializa y posiciona en el mundo a todos los NPCs y carteles.
+ *
+ * Lista generada:
+ * 1. Mentor Aldor: Aldea Segura (columna 5, fila 6).
+ * 2. Curandera Elena: Aldea Segura (columna 11, fila 9).
+ * 3. Guardia Rurik: Junto a la primera compuerta (columna 26, fila 13).
+ * 4. Explorador Varek: Antes de las ruinas (columna 41, fila 13).
+ * 5. Cartel Salida Este: Salida de la aldea (columna 15, fila 13).
+ * 6. Cartel Peligro Bosque: Entrada al bosque sombrío (columna 30, fila 13).
+ * 7. Cartel Clínica: Frente a la casa de Elena (columna 10, fila 11).
+ * 8. Cartel Ruinas: Entrada a los pasillos del Dragón (columna 43, fila 13).
+ *
+ * @return std::vector<NPC> Vector con las 8 entidades configuradas y listas para agregarse al mundo.
+ */
 std::vector<NPC> CreateWorldNPCs() {
     std::vector<NPC> list;
 
@@ -109,7 +160,7 @@ std::vector<NPC> CreateWorldNPCs() {
     mentor.name = "Mentor Aldor";
     mentor.body = { 5 * 32 + 4.0f, 6 * 32 + 4.0f, 24, 24 };
     mentor.art = ART_ELDER;
-    mentor.bodyColor = { 45, 65, 120, 255 };   // Tunica azul
+    mentor.bodyColor = { 45, 65, 120, 255 };   // Túnica azul
     mentor.lightColor = { 215, 175, 55, 255 };  // Ribete dorado
     mentor.isSolid = true;
     list.push_back(mentor);
@@ -133,7 +184,7 @@ std::vector<NPC> CreateWorldNPCs() {
     guard.name = "Guardia Rurik";
     guard.body = { 26 * 32 + 4.0f, 13 * 32 + 4.0f, 24, 24 };
     guard.art = ART_WARRIOR;
-    guard.bodyColor = { 170, 180, 195, 255 };  // Armadura metalica
+    guard.bodyColor = { 170, 180, 195, 255 };  // Armadura metálica
     guard.lightColor = { 220, 50, 50, 255 };    // Escarlata
     guard.isSolid = true;
     list.push_back(guard);
@@ -174,7 +225,7 @@ std::vector<NPC> CreateWorldNPCs() {
     signDanger.isSolid = true;
     list.push_back(signDanger);
 
-    // 7. Cartel Clinica
+    // 7. Cartel Clínica
     NPC signClinic;
     signClinic.id = "sign_clinic";
     signClinic.type = NPCType::SIGN;

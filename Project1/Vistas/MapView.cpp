@@ -1,23 +1,45 @@
+﻿/**
+ * @file MapView.cpp
+ * @brief Implementación del renderizado del supramundo, frustum culling, HUD y minimapa.
+ *
+ * Capa de Arquitectura: Vista (View) - Renderizado de Exploración.
+ *
+ * Propósito y Responsabilidades:
+ * - Implementar el renderizado optimizado de los 4 sectores del mundo (Aldea, Pradera, Bosque, Ruinas).
+ * - Realizar culling de celdas para dibujar únicamente las casillas visibles dentro del frustum de la cámara.
+ * - Renderizar al héroe mediante hoja de sprites (`assets/hero.png`) o mediante dibujo vectorial procedural de respaldo.
+ * - Dibujar la barra de estado (HUD), el minimapa proporcional con visor de cámara y la ventana de pausa.
+ */
+
 #include "MapView.h"
 #include "PixelArt.h"
 #include <algorithm>
 #include <cmath>
 
+/// Opciones textuales del menú de pausa.
 static const char* PAUSE_LABELS[3] = {
     "Reanudar",
     "Reiniciar",
     "Volver al Titulo"
 };
 
+/**
+ * @brief Carga la hoja de sprites del héroe si el archivo `assets/hero.png` existe en disco.
+ *
+ * La hoja esperada tiene formato de 4 columnas (cuadros de animación) x 4 filas (orientaciones),
+ * cada celda de 32x32 píxeles. Si el archivo no está presente, activa un mecanismo de respaldo
+ * seguro basado en dibujo procedural con primitivas de Raylib sin bloquear la ejecución.
+ */
 void MapView::Load() {
-    // Sprite opcional: assets/hero.png
-    // Se espera una hoja de 4 columnas x 4 filas, con frames de 32x32.
     if (FileExists("assets/hero.png")) {
         heroSheet = LoadTexture("assets/hero.png");
         hasSheet = heroSheet.id > 0;
     }
 }
 
+/**
+ * @brief Libera la textura del héroe de la memoria de vídeo si fue cargada previamente.
+ */
 void MapView::Unload() {
     if (hasSheet) {
         UnloadTexture(heroSheet);
@@ -26,6 +48,18 @@ void MapView::Unload() {
     }
 }
 
+/**
+ * @brief Dibuja una celda individual del mapa decorándola según el sector al que pertenece.
+ *
+ * Reglas de tematización por sector:
+ * - Sector 0 (cols 0-16): Aldea Segura. Césped cuidado, caminos de adoquín claro y casas con techos de tejas rojas.
+ * - Sector 1 (cols 17-28): Pradera Abierta. Suelo verde claro con flores silvestres deterministas (sin RNG en runtime).
+ * - Sector 2 (cols 29-39): Bosque Sombrío. Terreno oscuro, follaje de copas densas y agua nocturna.
+ * - Sector 3 (cols 40-59): Ruinas Antiguas. Losas de piedra grisácea con grietas, pilares y muros en ruinas.
+ *
+ * Casillas especiales:
+ * - Compuertas '1' y '2': Dibujadas como maderas reforzadas con remaches dorados mientras permanecen cerradas.
+ */
 void MapView::DrawTile(const TileMap& map, int col, int row) const {
     const int tileSize = TileMap::TILE;
     const int x = col * tileSize;
@@ -33,34 +67,30 @@ void MapView::DrawTile(const TileMap& map, int col, int row) const {
 
     const char tile = map.At(col, row);
 
-    // Identificacion de sector segun la columna
-    // 0: Aldea segura (0..16)
-    // 1: Pradera abierta (17..28)
-    // 2: Bosque sombrio (29..39)
-    // 3: Ruinas antiguas (40..59)
+    // Identificación de sector según la columna
     const int sector = (col < 17) ? 0 : (col < 29) ? 1 : (col < 40) ? 2 : 3;
 
-    // Paleta base del suelo segun el sector
+    // Paleta base del suelo según el sector
     Color groundColor;
     switch (sector) {
-    case 0: groundColor = { 92, 172, 98, 255 }; break;   // Aldea: cesped cuidado
+    case 0: groundColor = { 92, 172, 98, 255 }; break;   // Aldea: césped cuidado
     case 1: groundColor = { 108, 188, 92, 255 }; break;  // Pradera: verde claro
-    case 2: groundColor = { 50, 110, 60, 255 }; break;   // Bosque: verde oscuro sombrio
+    case 2: groundColor = { 50, 110, 60, 255 }; break;   // Bosque: verde oscuro sombrío
     case 3:
     default: groundColor = { 110, 115, 122, 255 }; break; // Ruinas: losa de piedra gris
     }
 
     DrawRectangle(x, y, tileSize, tileSize, groundColor);
 
-    // Detalles decorativos deterministas segun el sector (sin aleatoriedad en runtime)
+    // Detalles decorativos deterministas según el sector (hash matemático basado en coordenadas)
     const int detHash = (col * 31 + row * 17) % 23;
     if (tile == '.' || tile == 'p') {
         if (sector == 1) { // Pradera: flores discretas
             if (detHash == 1) {
-                DrawRectangle(x + 10, y + 14, 3, 3, { 250, 250, 245, 255 }); // flor blanca
+                DrawRectangle(x + 10, y + 14, 3, 3, { 250, 250, 245, 255 }); // Flor blanca
             }
             else if (detHash == 5) {
-                DrawRectangle(x + 22, y + 20, 3, 3, { 255, 225, 80, 255 }); // flor amarilla
+                DrawRectangle(x + 22, y + 20, 3, 3, { 255, 225, 80, 255 }); // Flor amarilla
             }
         }
         else if (sector == 3) { // Ruinas: fisuras sutiles en la piedra
@@ -72,15 +102,14 @@ void MapView::DrawTile(const TileMap& map, int col, int row) const {
 
     switch (tile) {
     case '#':
-        // Elementos solidos: arboles en aldea/pradera/bosque, pilares de piedra en ruinas
         if (sector == 3) {
-            // Pilares de piedra en ruinas
+            // Pilares de piedra derruidos en ruinas
             DrawRectangle(x + 4, y + 4, 24, 24, { 85, 90, 100, 255 });
             DrawRectangleLines(x + 4, y + 4, 24, 24, { 60, 65, 75, 255 });
             DrawRectangle(x + 8, y + 8, 16, 16, { 115, 120, 130, 255 });
         }
         else {
-            // Arboles con tono segun el bosque o pradera
+            // Árboles con tono según bosque o pradera
             Color treeBase = (sector == 2) ? Color{ 18, 65, 32, 255 } : Color{ 30, 100, 50, 255 };
             Color treeMid = (sector == 2) ? Color{ 30, 90, 45, 255 } : Color{ 55, 135, 75, 255 };
             Color treeHigh = (sector == 2) ? Color{ 25, 80, 40, 255 } : Color{ 45, 120, 60, 255 };
@@ -91,9 +120,9 @@ void MapView::DrawTile(const TileMap& map, int col, int row) const {
         break;
 
     case 'p':
-        // Caminos: claros en aldea, tierra en pradera/bosque, baldosas en ruinas
+        // Caminos adaptados al bioma
         if (sector == 0) {
-            DrawRectangle(x, y, tileSize, tileSize, { 236, 216, 168, 255 }); // Adoquin claro
+            DrawRectangle(x, y, tileSize, tileSize, { 236, 216, 168, 255 }); // Adoquín claro
         }
         else if (sector == 1) {
             DrawRectangle(x, y, tileSize, tileSize, { 222, 202, 145, 255 }); // Tierra clara
@@ -108,7 +137,7 @@ void MapView::DrawTile(const TileMap& map, int col, int row) const {
         break;
 
     case 'W':
-        // Agua: azul sereno en aldea/pradera, oscura en bosque/ruinas
+        // Cuerpos de agua
         if (sector == 2 || sector == 3) {
             DrawRectangle(x, y, tileSize, tileSize, { 65, 85, 125, 255 });
             DrawRectangle(x + 4, y + 8, 10, 2, { 110, 135, 175, 255 });
@@ -143,7 +172,7 @@ void MapView::DrawTile(const TileMap& map, int col, int row) const {
 
     case '1':
     case '2':
-        // Compuerta logica cerrada con remaches
+        // Compuerta lógica cerrada con remaches
         DrawRectangle(x, y, tileSize, tileSize, { 210, 190, 140, 255 });
         DrawRectangle(x + 4, y + 2, 6, tileSize - 4, { 110, 70, 40, 255 });
         DrawRectangle(x + 22, y + 2, 6, tileSize - 4, { 110, 70, 40, 255 });
@@ -164,10 +193,14 @@ void MapView::DrawTile(const TileMap& map, int col, int row) const {
     DrawRectangleLines(x, y, tileSize, tileSize, Fade(BLACK, 0.08f));
 }
 
+/**
+ * @brief Dibuja al personaje del jugador con sombra en el suelo y animación de pasos.
+ */
 void MapView::DrawPlayer(const Player& player) const {
     const float centerX = player.body.x + player.body.width / 2.0f;
     const float bottomY = player.body.y + player.body.height;
 
+    // Sombra elíptica bajo los pies
     DrawEllipse(
         static_cast<int>(centerX),
         static_cast<int>(bottomY),
@@ -176,9 +209,9 @@ void MapView::DrawPlayer(const Player& player) const {
         Fade(BLACK, 0.30f)
     );
 
+    // Caso 1: Si existe la hoja de sprites assets/hero.png
     if (hasSheet) {
         int frame = 0;
-
         if (player.moving) {
             frame = static_cast<int>(player.animTimer * 8.0f) % 4;
         }
@@ -205,11 +238,10 @@ void MapView::DrawPlayer(const Player& player) const {
             0.0f,
             WHITE
         );
-
         return;
     }
 
-    // Personaje dibujado con primitivas si no existe assets/hero.png
+    // Caso 2: Respaldo procedimental con primitivas vectoriales de Raylib
     const float bob = player.moving
         ? std::sin(player.animTimer * 16.0f) * 2.0f
         : 0.0f;
@@ -219,69 +251,33 @@ void MapView::DrawPlayer(const Player& player) const {
         : 0.0f;
 
     // Piernas
-    DrawRectangle(
-        static_cast<int>(centerX - 7 + legMove),
-        static_cast<int>(bottomY - 8),
-        5,
-        8,
-        DARKBLUE
-    );
+    DrawRectangle(static_cast<int>(centerX - 7 + legMove), static_cast<int>(bottomY - 8), 5, 8, DARKBLUE);
+    DrawRectangle(static_cast<int>(centerX + 2 - legMove), static_cast<int>(bottomY - 8), 5, 8, DARKBLUE);
 
-    DrawRectangle(
-        static_cast<int>(centerX + 2 - legMove),
-        static_cast<int>(bottomY - 8),
-        5,
-        8,
-        DARKBLUE
-    );
-
-    // Cuerpo
-    DrawRectangle(
-        static_cast<int>(centerX - 8),
-        static_cast<int>(bottomY - 20 + bob),
-        16,
-        13,
-        SKYBLUE
-    );
+    // Torso / Ropa
+    DrawRectangle(static_cast<int>(centerX - 8), static_cast<int>(bottomY - 20 + bob), 16, 13, SKYBLUE);
 
     // Cabeza y pelo
-    DrawCircle(
-        static_cast<int>(centerX),
-        static_cast<int>(bottomY - 25 + bob),
-        7,
-        { 205, 150, 110, 255 }
-    );
+    DrawCircle(static_cast<int>(centerX), static_cast<int>(bottomY - 25 + bob), 7, { 205, 150, 110, 255 });
+    DrawRectangle(static_cast<int>(centerX - 7), static_cast<int>(bottomY - 34 + bob), 14, 6, { 40, 200, 190, 255 });
 
-    DrawRectangle(
-        static_cast<int>(centerX - 7),
-        static_cast<int>(bottomY - 34 + bob),
-        14,
-        6,
-        { 40, 200, 190, 255 }
-    );
-
-    // Ojos orientados segun la direccion
+    // Ojos orientados según Facing
     const int eyeOffsetX =
         player.facing == Facing::LEFT ? -2 :
         player.facing == Facing::RIGHT ? 2 : 0;
 
     if (player.facing != Facing::UP) {
-        DrawCircle(
-            static_cast<int>(centerX - 3 + eyeOffsetX),
-            static_cast<int>(bottomY - 25 + bob),
-            1,
-            BLACK
-        );
-
-        DrawCircle(
-            static_cast<int>(centerX + 3 + eyeOffsetX),
-            static_cast<int>(bottomY - 25 + bob),
-            1,
-            BLACK
-        );
+        DrawCircle(static_cast<int>(centerX - 3 + eyeOffsetX), static_cast<int>(bottomY - 25 + bob), 1, BLACK);
+        DrawCircle(static_cast<int>(centerX + 3 + eyeOffsetX), static_cast<int>(bottomY - 25 + bob), 1, BLACK);
     }
 }
 
+/**
+ * @brief Renderiza a un enemigo en el mapa con PixelArt y signos contextuales.
+ *
+ * - Si está en estado CHASE (persiguiendo al jugador), muestra un signo '!' rojo parpadeante sobre su cabeza.
+ * - Muestra el nombre de la criatura arriba del sprite.
+ */
 void MapView::DrawEnemy(const Enemy& enemy) const {
     const float centerX = enemy.body.x + enemy.body.width / 2.0f;
     const float centerY = enemy.body.y + enemy.body.height / 2.0f;
@@ -306,6 +302,7 @@ void MapView::DrawEnemy(const Enemy& enemy) const {
         enemy.lightColor
     );
 
+    // Alerta visual de persecución
     if (enemy.ai == AIState::CHASE) {
         DrawText(
             "!",
@@ -325,6 +322,12 @@ void MapView::DrawEnemy(const Enemy& enemy) const {
     );
 }
 
+/**
+ * @brief Renderiza a un NPC o Cartel en el supramundo.
+ *
+ * Si `isPromptTarget` es true (el jugador está en rango de interacción),
+ * muestra una insignia flotante dorada con `[E] Leer` o `[E] Hablar`.
+ */
 void MapView::DrawNPC(const NPC& npc, bool isPromptTarget) const {
     const float centerX = npc.body.x + npc.body.width / 2.0f;
     const float centerY = npc.body.y + npc.body.height / 2.0f;
@@ -332,7 +335,6 @@ void MapView::DrawNPC(const NPC& npc, bool isPromptTarget) const {
     const int scale = 2;
     const float spriteSize = 12.0f * scale;
 
-    // Sombra en el suelo
     DrawEllipse(
         static_cast<int>(centerX),
         static_cast<int>(npc.body.y + npc.body.height),
@@ -341,7 +343,6 @@ void MapView::DrawNPC(const NPC& npc, bool isPromptTarget) const {
         Fade(BLACK, 0.30f)
     );
 
-    // Sprite en pixel art
     DrawPixelArt(
         npc.art,
         centerX - spriteSize / 2.0f,
@@ -351,7 +352,6 @@ void MapView::DrawNPC(const NPC& npc, bool isPromptTarget) const {
         npc.lightColor
     );
 
-    // Etiqueta flotante cuando el jugador esta en radio de interaccion
     if (isPromptTarget) {
         const char* prompt = npc.isSign ? "[E] Leer" : "[E] Hablar";
         const int pw = MeasureText(prompt, 11);
@@ -367,6 +367,9 @@ void MapView::DrawNPC(const NPC& npc, bool isPromptTarget) const {
     }
 }
 
+/**
+ * @brief Renderiza el mundo 2D completo bajo la cámara activa con optimización de frustum culling.
+ */
 void MapView::DrawWorld(
     const TileMap& map,
     const Player& player,
@@ -379,7 +382,7 @@ void MapView::DrawWorld(
 
     BeginMode2D(camera);
 
-    // Culling inteligente de tiles segun el frustum visible de la camara
+    // Culling de casillas según el encuadre visible de la cámara
     const float halfW = 480.0f;
     const float halfH = 270.0f;
     const int colStart = std::max(0, static_cast<int>((camera.target.x - halfW) / TileMap::TILE) - 1);
@@ -398,17 +401,22 @@ void MapView::DrawWorld(
         DrawNPC(npc, nearbyNpc == &npc);
     }
 
+    // Dibujado de enemigos no derrotados
     for (const Enemy& enemy : enemies) {
         if (!enemy.defeated) {
             DrawEnemy(enemy);
         }
     }
 
+    // Dibujado del héroe
     DrawPlayer(player);
 
     EndMode2D();
 }
 
+/**
+ * @brief Dibuja la barra de información inferior en coordenadas fijas de pantalla (no afectada por cámara 2D).
+ */
 void MapView::DrawHUD(const Player& player) const {
     DrawRectangle(0, 512, 960, 28, { 18, 22, 32, 245 });
     DrawRectangleLinesEx({ 0.0f, 512.0f, 960.0f, 28.0f }, 1.0f, { 60, 75, 105, 200 });
@@ -441,6 +449,12 @@ void MapView::DrawHUD(const Player& player) const {
     );
 }
 
+/**
+ * @brief Renderiza el minimapa en tiempo real con visor de encuadre de cámara.
+ *
+ * Dimensiones: 60 columnas x 3 px = 180 px; 32 filas x 3 px = 96 px.
+ * Posición: Esquina superior derecha (X=768, Y=12).
+ */
 void MapView::DrawMinimap(
     const TileMap& map,
     const Player& player,
@@ -469,12 +483,10 @@ void MapView::DrawMinimap(
         GOLD
     );
 
-    // Dibujado de tiles a escala en el minimapa
+    // Dibujado de casillas a escala en el minimapa
     for (int row = 0; row < TileMap::ROWS; ++row) {
         for (int col = 0; col < TileMap::COLS; ++col) {
             const char tile = map.At(col, row);
-
-            // Diferenciacion de biomas en el minimapa
             const int miniSector = (col < 17) ? 0 : (col < 29) ? 1 : (col < 40) ? 2 : 3;
 
             Color color;
@@ -489,9 +501,8 @@ void MapView::DrawMinimap(
                 color = (miniSector == 3) ? Color{ 60, 65, 75, 255 } : Color{ 25, 75, 40, 255 };
             }
             else if (tile == 'p') {
-                // Compuertas abiertas se distinguen como paso libre esmeralda
                 if (isGateTile) {
-                    color = { 60, 220, 120, 255 }; // Compuerta abierta
+                    color = { 60, 220, 120, 255 }; // Compuerta abierta destacada en esmeralda
                 }
                 else {
                     color = (miniSector == 3) ? Color{ 160, 165, 175, 255 } : Color{ 225, 205, 145, 255 };
@@ -504,7 +515,7 @@ void MapView::DrawMinimap(
                 color = (miniSector == 3) ? Color{ 80, 85, 95, 255 } : Color{ 195, 115, 85, 255 };
             }
             else if (tile == '1' || tile == '2') {
-                color = { 230, 45, 45, 255 }; // Compuerta cerrada (resaltada en rojo)
+                color = { 230, 45, 45, 255 }; // Compuerta cerrada resaltada en rojo brillante
             }
 
             DrawRectangle(
@@ -517,7 +528,7 @@ void MapView::DrawMinimap(
         }
     }
 
-    // Enemigos en minimapa (rojos, jefe dorado/carmesi)
+    // Enemigos en minimapa (rojos, jefe con borde dorado)
     for (const Enemy& enemy : enemies) {
         if (!enemy.defeated) {
             const Vector2 center = enemy.Center();
@@ -534,13 +545,13 @@ void MapView::DrawMinimap(
         }
     }
 
-    // Jugador en minimapa (punto blanco brillante)
+    // Jugador en minimapa (punto blanco)
     const Vector2 playerCenter = player.Center();
     const int playerX = originX + static_cast<int>(playerCenter.x / (TileMap::TILE) * scale);
     const int playerY = originY + static_cast<int>(playerCenter.y / (TileMap::TILE) * scale);
     DrawRectangle(playerX - 2, playerY - 2, 5, 5, WHITE);
 
-    // Visor de la camara en el minimapa (recuadro que indica la region visible)
+    // Visor de la cámara en el minimapa (recuadro proporcional del encuadre visible)
     const float viewW = 960.0f;
     const float viewH = 540.0f;
     const float totalWorldW = static_cast<float>(TileMap::COLS * TileMap::TILE);
@@ -576,7 +587,6 @@ int MapView::GetPauseButton(Vector2 mouse) const {
             return i;
         }
     }
-
     return -1;
 }
 
@@ -596,7 +606,7 @@ void MapView::DrawPause(int selected) const {
 
     for (int i = 0; i < 3; ++i) {
         const Rectangle button = PauseButton(i);
-        const bool isSelected = i == selected;
+        const bool isSelected = (i == selected);
 
         DrawRectangleRec(
             button,

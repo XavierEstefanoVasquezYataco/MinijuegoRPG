@@ -15,10 +15,40 @@ El proyecto incorpora selección de clases con identidad táctica, un mundo abie
 ## 2. Novedades y Características de la Versión 2
 
 ### 2.1. Arquitectura MVC Práctica y Desacoplamiento de Hardware
-* **Modelo (`Model`):** Clases de datos y lógica de negocio puras ([`Player`](Project1/Player.h), [`Enemy`](Project1/Player.h), [`TileMap`](Project1/TileMap.h), [`NPC`](Project1/NPC.h)). Cero llamadas a primitivas gráficas de Raylib y cero consultas directas de hardware.
-* **Vistas (`Views`):** Clases pasivas de renderizado ([`TitleView`](Project1/TitleView.h), [`MapView`](Project1/MapView.h), [`CombatUI`](Project1/CombatUI.h), [`DialogueView`](Project1/DialogueView.h), [`PixelArt`](Project1/PixelArt.h)). Reciben referencias constantes (`const &`) del estado y exponen consultas geométricas puras (`GetHoveredButton`, `GetChoiceButtonRect`).
-* **Controlador (`Controller`):** Orquestador centralizado ([`Game`](Project1/Game.h)). Captura la entrada física de hardware, gestiona la máquina de estados (`GameState`) y coordina las transiciones.
-* **Presentación de Combate (`CombatPresentation`):** Módulo dedicado ([`CombatPresentation`](Project1/CombatPresentation.h)) que gestiona interpolación de barras de salud y maná, embestidas visuales (*lunge*), destellos de daño (*hit flash*), sacudida de pantalla (*screen shake*), textos flotantes y congelamiento del tiempo durante la pausa.
+
+El proyecto implementa una versión pragmática del patrón **Modelo-Vista-Controlador (MVC)** orientada al desarrollo de videojuegos con ciclo de vida en tiempo real:
+
+* **Modelo (`Project1/Modelo/`):**
+  * Contiene los datos puros y las reglas de negocio del juego: estadísticas de combate, progresión de nivel, fórmulas de daño, estado del mapa de casillas (60x32), colisiones y narrativa progresiva de los NPCs.
+  * Archivos: [`GameState.h`](Project1/Modelo/GameState.h), [`Player.h`](Project1/Modelo/Player.h) / [`Player.cpp`](Project1/Modelo/Player.cpp), [`TileMap.h`](Project1/Modelo/TileMap.h) / [`TileMap.cpp`](Project1/Modelo/TileMap.cpp), [`NPC.h`](Project1/Modelo/NPC.h) / [`NPC.cpp`](Project1/Modelo/NPC.cpp).
+  * Regla de diseño: Cero llamadas a primitivas gráficas de Raylib y cero consultas directas de hardware (`IsKeyDown`, `GetMousePosition`).
+* **Vistas (`Project1/Vistas/`):**
+  * Clases pasivas encargadas de la representación visual en pantalla (framebuffer) en resolución virtual 960x540. Reciben referencias constantes (`const &`) de las entidades del modelo y no modifican el estado de la partida.
+  * Archivos: [`TitleView.h`](Project1/Vistas/TitleView.h) / [`TitleView.cpp`](Project1/Vistas/TitleView.cpp), [`MapView.h`](Project1/Vistas/MapView.h) / [`MapView.cpp`](Project1/Vistas/MapView.cpp), [`CombatUI.h`](Project1/Vistas/CombatUI.h) / [`CombatUI.cpp`](Project1/Vistas/CombatUI.cpp), [`DialogueView.h`](Project1/Vistas/DialogueView.h) / [`DialogueView.cpp`](Project1/Vistas/DialogueView.cpp), [`PixelArt.h`](Project1/Vistas/PixelArt.h) / [`PixelArt.cpp`](Project1/Vistas/PixelArt.cpp).
+  * Módulo especializado de animación: [`CombatPresentation.h`](Project1/Vistas/CombatPresentation.h) / [`CombatPresentation.cpp`](Project1/Vistas/CombatPresentation.cpp) gestiona interpolación de barras (`160 pts/s`), embestidas visuales (*lunge*), destellos de daño (*hit flash*), sacudida de pantalla (*screen shake*), textos flotantes y congelamiento del tiempo durante la pausa.
+  * Exponen consultas geométricas puras (`GetHoveredButton`, `GetChoiceButtonRect`) para que el controlador conozca la interacción del usuario sin ejecutar lógica dentro del renderizado.
+* **Controlador (`Project1/Controladores/`):**
+  * Orquestador central de la aplicación ([`Game.h`](Project1/Controladores/Game.h) / [`Game.cpp`](Project1/Controladores/Game.cpp)). Captura la entrada física de hardware (teclado y ratón de Raylib), ejecuta las transiciones de la máquina de estados (`GameState`), actualiza el tiempo (`dt`), comanda el movimiento y las colisiones, y delega el dibujo a las vistas pasivas.
+* **Punto de Entrada (`Project1/main.cpp`):**
+  * Inicializa el ciclo de vida instanciando el objeto `Game` y llamando a `Game::Run()`, manteniendo el arranque limpio y modular.
+
+#### Relación entre Clases Principales (Flujo Real de Ejecución)
+1. `main()` crea `Game` e inicia `Run()`.
+2. `Game` inicializa `TileMap`, `Player`, la lista de `Enemy`, los `NPC` y las vistas pasivas (`MapView`, `CombatUI`, `TitleView`, `DialogueView`, `CombatPresentation`).
+3. En cada fotograma, `Game::Update(dt)` lee el hardware de Raylib:
+   * En exploración (`MAP`), calcula el vector direccional y comanda a `Player::Update()` y `map.Move()`.
+   * Si hay contacto con un enemigo, transiciona a `COMBAT` e invoca `combatPres.OnCombatStart()`.
+   * En combate (`COMBAT`), procesa las elecciones 2x2, calcula daño en `Combatant::CalculateDamage()` y activa disparadores visuales en `CombatPresentation`.
+4. En cada fotograma, `Game::Draw()` invoca el método correspondiente de la vista (`mapView.DrawWorld()`, `ui.Draw()`, etc.) pasándole datos en solo lectura.
+
+#### Diferencia entre Filtros de Visual Studio y Carpetas Físicas
+* **Filtros de Visual Studio (`.vcxproj.filters`):** Son etiquetas puramente lógicas en formato XML utilizadas por el IDE de Visual Studio para agrupar archivos en el *Explorador de Soluciones*. No alteran la ubicación física en el disco duro ni la visualización de directorios en GitHub.
+* **Carpetas Físicas del Repositorio:** Son directorios reales en el sistema de archivos (`Project1/Modelo`, `Project1/Vistas`, `Project1/Controladores`). Esta organización física permite que en GitHub el código fuente se explore de forma ordenada según su responsabilidad arquitectónica y que las rutas relativas en los `#include` sean consistentes entre diferentes plataformas y compiladores.
+
+#### Limitaciones Arquitectónicas Identificadas
+* **Acoplamiento de recursos visuales en el Modelo:** `Player.cpp` y `NPC.cpp` incluyen `PixelArt.h` para acceder a identificadores numéricos de sprites (`ART_WARRIOR`, `ART_ELDER`, etc.). En una arquitectura MVC pura y estricta, el modelo solo debería almacenar identificadores abstractos y la vista mapearlos a gráficos.
+* **Controlador Monolítico:** La clase `Game` concentra la orquestación de todas las escenas (Título, Mapa, Combate, Diálogos y Pausa). Un paso evolutivo posterior sería implementar un gestor de estados modular (*State Pattern*) donde cada escena sea un controlador independiente.
+* **Dependencia de tipos de Raylib en el Modelo:** `Player.h`, `TileMap.h` y `NPC.h` utilizan `Rectangle` y `Vector2` de Raylib para colisiones por simplicidad. Aunque no realizan renderizado, vinculan los tipos matemáticos a la biblioteca gráfica externa.
 
 ### 2.2. Pantalla de Título y Selección de Héroe
 * **Menú Principal:** Opciones para *Nueva Partida*, *Continuar* (deshabilitada con aviso informativo por estar en fase de desarrollo), *Controles* y *Salir* con confirmación (`[S]/[N]`).
@@ -85,21 +115,25 @@ MiniAventuraRPG_v2/
 ├── PRUEBAS_MANUALES.md               # Matriz de casos de prueba funcional y manual
 ├── packages/                         # Dependencias NuGet nativas
 │   └── raylib.5.5.0/                 # Raylib 5.5.0 (encabezados y binarios estáticos x64)
-└── Project1/                         # Código fuente del proyecto
+└── Project1/                         # Código fuente del proyecto (Organización Física MVC)
     ├── main.cpp                      # Punto de entrada de la aplicación
-    ├── GameState.h                   # Enumeraciones de estado global y fases de combate
-    ├── Game.h / Game.cpp             # Controlador orquestador principal
-    ├── Player.h / Player.cpp         # Clases Combatant, Player, Enemy y tablas de arquetipos
-    ├── TileMap.h / TileMap.cpp       # Matriz de mapa 60x32, colisiones y compuertas
-    ├── MapView.h / MapView.cpp       # Vista del supramundo, cámara 2D, HUD y minimapa
-    ├── CombatUI.h / CombatUI.cpp     # Vista pasiva de la arena de combate y registro de eventos
-    ├── CombatPresentation.h / .cpp   # Módulo de presentación: animaciones, barras y biomas
-    ├── TitleView.h / TitleView.cpp   # Vista de la pantalla de título, controles y selección
-    ├── DialogueView.h / .cpp         # Vista de cuadros de diálogo y confirmación interactiva
-    ├── NPC.h / NPC.cpp               # Modelo puro de personajes no jugadores y carteles
-    ├── PixelArt.h / PixelArt.cpp     # Rasterizador procedimental de sprites 12x12
-    ├── Project1.vcxproj              # Proyecto MSBuild C++20
-    └── Project1.vcxproj.filters      # Filtros lógicos en Visual Studio (Modelo, Vistas, Controladores)
+    ├── packages.config               # Configuración de dependencias NuGet
+    ├── Project1.vcxproj              # Proyecto MSBuild C++20 con rutas actualizadas
+    ├── Project1.vcxproj.filters      # Filtros lógicos en Visual Studio (Modelo, Vistas, Controladores)
+    ├── Modelo/                       # Capa de Modelo (Lógica de Dominio y Datos Puros)
+    │   ├── GameState.h               # Enumeraciones de estado global y fases de combate
+    │   ├── Player.h / Player.cpp     # Clases Combatant, Player, Enemy y tablas de arquetipos
+    │   ├── TileMap.h / TileMap.cpp   # Matriz de mapa 60x32, colisiones y compuertas
+    │   └── NPC.h / NPC.cpp           # Modelo de personajes no jugadores y carteles
+    ├── Vistas/                       # Capa de Vistas (Renderizado Pasivo y Presentación)
+    │   ├── CombatUI.h / .cpp         # Vista pasiva de la arena de combate y registro de eventos
+    │   ├── CombatPresentation.h/.cpp # Módulo de presentación: animaciones, barras y biomas
+    │   ├── MapView.h / MapView.cpp   # Vista del supramundo, cámara 2D, HUD y minimapa
+    │   ├── PixelArt.h / PixelArt.cpp # Rasterizador procedimental de sprites 12x12
+    │   ├── TitleView.h / .cpp        # Vista de pantalla de título, controles y selección
+    │   └── DialogueView.h / .cpp     # Vista de cuadros de diálogo y confirmación interactiva
+    └── Controladores/                # Capa de Controladores (Orquestación del Bucle de Juego)
+        └── Game.h / Game.cpp         # Controlador orquestador principal
 ```
 
 ---

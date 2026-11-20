@@ -1,3 +1,17 @@
+﻿/**
+ * @file Game.cpp
+ * @brief Implementación del orquestador principal del juego, máquina de estados y ciclo de eventos.
+ *
+ * Capa de Arquitectura: Controlador (Controller) - Orquestador Central.
+ *
+ * Propósito y Responsabilidades:
+ * - Implementar el bucle principal de ejecución (`Run`).
+ * - Procesar las entradas de teclado y ratón desacoplando el hardware de los modelos de datos.
+ * - Coordinar la máquina de estados de juego (Título, Selección de Héroe, Controles, Mapa, Diálogo, Combate, Pausa).
+ * - Restringir suavemente el encuadre de la cámara 2D (*camera clamping*) para confinar la vista al mundo de 1920x1024 px.
+ * - Resolver las reglas del combate por turnos, turnos enemigos y subidas escalonadas de nivel.
+ */
+
 #include "Game.h"
 #include <algorithm>
 #include <cmath>
@@ -5,14 +19,24 @@
 #include "raylib.h"
 
 // ------------------------------------------------------------
-// CONSTRUCTOR / DESTRUCTOR / BUCLE
+// CONSTRUCTOR / DESTRUCTOR / BUCLE PRINCIPAL
 // ------------------------------------------------------------
 
+/**
+ * @brief Constructor principal del juego.
+ *
+ * Acciones ejecutadas:
+ * 1. Inicializa la ventana de Raylib a 960x540 píxeles con el título "Mini Aventura RPG".
+ * 2. Fija la tasa de refresco a 60 FPS estables.
+ * 3. Ejecuta `SetExitKey(KEY_NULL)` para deshabilitar el cierre automático por defecto de Raylib al pulsar ESCAPE,
+ *    permitiendo que la tecla Escape se use limpiamente para retroceder menús o abrir la pausa.
+ * 4. Carga las texturas auxiliares en `MapView` y genera el mundo inicial en `TITLE_SCREEN`.
+ */
 Game::Game() {
     InitWindow(SCREEN_W, SCREEN_H, "Mini Aventura RPG");
     SetTargetFPS(60);
 
-    // Desactivar el cierre automatico de Raylib por tecla ESCAPE
+    // Desactivar el cierre automático de Raylib por tecla ESCAPE
     // para centralizar el comportamiento de Escape en el controlador
     SetExitKey(KEY_NULL);
 
@@ -21,11 +45,22 @@ Game::Game() {
     state = GameState::TITLE_SCREEN;
 }
 
+/**
+ * @brief Destructor. Descarga texturas de la GPU y cierra la ventana multimedia.
+ */
 Game::~Game() {
     mapView.Unload();
     CloseWindow();
 }
 
+/**
+ * @brief Inicializa o restablece todos los elementos del mundo de juego.
+ *
+ * - Reconstruye la matriz del `TileMap` y extrae los puntos de generación ('A'..'F') para poblar los enemigos.
+ * - Restablece al héroe en su posición inicial de la aldea segura.
+ * - Genera los NPCs y carteles del mapa.
+ * - Configura la cámara 2D en offset de pantalla media ({ 480, 270 }) con zoom 1.0f.
+ */
 void Game::InitWorld() {
     map = TileMap();
     player = Player();
@@ -52,18 +87,37 @@ void Game::InitWorld() {
     showMinimap = true;
     confirmExit = false;
 
-    // Configuracion de la camara 2D centrada en el jugador
+    // Configuración de la cámara 2D centrada en el jugador
     camera.offset = { SCREEN_W / 2.0f, SCREEN_H / 2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
     UpdateCamera();
 }
 
+/**
+ * @brief Reinicia el estado del mundo y limpia los efectos visuales de combate.
+ */
 void Game::Reset() {
     InitWorld();
     combatPres.Reset();
 }
 
+/**
+ * @brief Restringe suavemente el objetivo de la cámara 2D dentro de los bordes del mapa (Clamping).
+ *
+ * Para evitar que el jugador vea el espacio vacío negro exterior a la cuadrícula:
+ * - Calcula la mitad del ancho (halfW = 480 px) y alto (halfH = 270 px) de la ventana virtual (960x540 px).
+ * - Calcula los límites mundiales totales: ancho = 60 cols * 32 px = 1920 px; alto = 32 rows * 32 px = 1024 px.
+ * - Aplica `std::clamp` sobre `camera.target.x` entre `halfW` y `anchoMundo - halfW`.
+ * - Aplica `std::clamp` sobre `camera.target.y` entre `halfH` y `altoMundo - halfH`.
+ *
+ * Ejemplo numérico de restricción de cámara:
+ * - Rango permitido para camera.target.x: [480.0f .. (1920.0f - 480.0f = 1440.0f)].
+ * - Rango permitido para camera.target.y: [270.0f .. (1024.0f - 270.0f = 754.0f)].
+ * - Si el héroe se encuentra en la aldea segura en X = 120 px, el clamp fija camera.target.x en 480 px,
+ *   evitando que la ventana encuadre el vacío negro a la izquierda del mapa.
+ * - Si el héroe camina al sanctum final en X = 1800 px, camera.target.x se restringe a 1440 px.
+ */
 void Game::UpdateCamera() {
     const Vector2 target = player.Center();
     const float halfW = SCREEN_W / 2.0f;
@@ -75,6 +129,10 @@ void Game::UpdateCamera() {
     camera.target.y = std::clamp(target.y, halfH, mapPixelH - halfH);
 }
 
+/**
+ * @brief Inicia una nueva partida con el arquetipo de héroe seleccionado por el usuario.
+ * @param chosenClass Arquetipo elegido (Guerrero, Maga, Exploradora).
+ */
 void Game::StartNewGame(HeroClass chosenClass) {
     Reset();
     player.InitClass(chosenClass);
@@ -82,6 +140,9 @@ void Game::StartNewGame(HeroClass chosenClass) {
     state = GameState::MAP;
 }
 
+/**
+ * @brief Bucle central de ejecución de la aplicación a 60 cuadros por segundo.
+ */
 void Game::Run() {
     while (!WindowShouldClose() && !quit) {
         const float dt = GetFrameTime();
@@ -91,9 +152,12 @@ void Game::Run() {
 }
 
 // ------------------------------------------------------------
-// PAUSA
+// GESTIÓN DE PAUSA
 // ------------------------------------------------------------
 
+/**
+ * @brief Congela el estado actual del juego y abre la ventana de pausa superpuesta.
+ */
 void Game::Pause() {
     prevState = state;
     state = GameState::PAUSED;
@@ -101,24 +165,31 @@ void Game::Pause() {
     confirmExit = false;
 }
 
+/**
+ * @brief Reanuda la partida restaurando el estado previo a la pausa.
+ */
 void Game::Resume() {
     state = prevState;
     confirmExit = false;
 }
 
+/**
+ * @brief Ejecuta la acción seleccionada en el menú de pausa.
+ * @param option 0 para Reanudar, 1 para Reiniciar con el mismo héroe, 2 para Volver al Título.
+ */
 void Game::ActivatePause(int option) {
     switch (option) {
     case 0: // Reanudar
         Resume();
         break;
-    case 1: { // Reiniciar (conserva el heroe elegido)
+    case 1: { // Reiniciar (conserva la clase elegida)
         const HeroClass currentClass = player.heroClass;
         Reset();
         player.InitClass(currentClass);
         Resume();
         break;
     }
-    case 2: // Volver al titulo (solicita confirmacion)
+    case 2: // Volver al título (solicita confirmación para evitar pérdidas accidentales)
         confirmExit = true;
         break;
     default:
@@ -126,7 +197,11 @@ void Game::ActivatePause(int option) {
     }
 }
 
+/**
+ * @brief Actualiza la interacción por teclado y ratón durante el estado de pausa.
+ */
 void Game::UpdatePause() {
+    // Si la ventana de confirmación de salida está activa
     if (confirmExit) {
         if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_ENTER)) {
             state = GameState::TITLE_SCREEN;
@@ -144,16 +219,15 @@ void Game::UpdatePause() {
         return;
     }
 
+    // Navegación vertical por opciones
     if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
         pauseSel = (pauseSel + 1) % 3;
     }
-
     if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
         pauseSel = (pauseSel + 2) % 3;
     }
 
     const int hovered = mapView.GetPauseButton(GetMousePosition());
-
     if (hovered >= 0) {
         pauseSel = hovered;
     }
@@ -167,20 +241,24 @@ void Game::UpdatePause() {
 }
 
 // ------------------------------------------------------------
-// PANTALLAS DE TITULO, CLASES Y CONTROLES
+// MENÚ DE TÍTULO, CLASES Y CONTROLES
 // ------------------------------------------------------------
 
+/**
+ * @brief Procesa la interacción en el menú de título principal.
+ */
 void Game::UpdateTitle() {
+    // Navegación con teclado saltando la opción "Continuar" si no hay guardado disponible
     if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
         titleSel = (titleSel + 1) % 4;
         if (titleSel == 1 && !continueAvailable) {
-            titleSel = 2; // Saltar opcion desactivada
+            titleSel = 2;
         }
     }
     if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
         titleSel = (titleSel + 3) % 4;
         if (titleSel == 1 && !continueAvailable) {
-            titleSel = 0; // Saltar opcion desactivada
+            titleSel = 0;
         }
     }
 
@@ -198,9 +276,9 @@ void Game::UpdateTitle() {
             classSel = 0;
             state = GameState::CLASS_SELECT;
             break;
-        case 1: // Continuar (desactivado en esta etapa)
+        case 1: // Continuar (desactivado temporalmente)
             if (continueAvailable) {
-                // Se integrara en la Etapa 7
+                // Se integrará con el sistema de guardado en la Etapa 7
             }
             break;
         case 2: // Controles
@@ -222,6 +300,9 @@ void Game::UpdateTitle() {
     }
 }
 
+/**
+ * @brief Procesa la interacción en la pantalla de selección de héroe.
+ */
 void Game::UpdateClassSelect() {
     if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
         classSel = (classSel + 1) % 3;
@@ -258,6 +339,9 @@ void Game::UpdateClassSelect() {
     }
 }
 
+/**
+ * @brief Procesa el retorno desde la pantalla informativa de Controles.
+ */
 void Game::UpdateControls() {
     if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
         state = GameState::TITLE_SCREEN;
@@ -274,9 +358,13 @@ void Game::UpdateControls() {
 }
 
 // ------------------------------------------------------------
-// ACTUALIZACION GENERAL
+// ACTUALIZACIÓN GENERAL (MÁQUINA DE ESTADOS)
 // ------------------------------------------------------------
 
+/**
+ * @brief Deriva la actualización lógica a la función especializada según el estado activo.
+ * @param dt Tiempo transcurrido del fotograma en segundos.
+ */
 void Game::Update(float dt) {
     switch (state) {
     case GameState::TITLE_SCREEN:
@@ -318,7 +406,6 @@ void Game::Update(float dt) {
     case GameState::GAME_OVER:
     case GameState::VICTORY:
         if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
-            // Reinicia la partida conservando el mismo heroe
             const HeroClass currentClass = player.heroClass;
             Reset();
             player.InitClass(currentClass);
@@ -326,7 +413,6 @@ void Game::Update(float dt) {
             state = GameState::MAP;
         }
         else if (IsKeyPressed(KEY_ESCAPE)) {
-            // Vuelve a la pantalla de titulo
             state = GameState::TITLE_SCREEN;
             Reset();
         }
@@ -335,9 +421,20 @@ void Game::Update(float dt) {
 }
 
 // ------------------------------------------------------------
-// MAPA
+// MODO SUPRAMUNDO (EXPLORACIÓN Y COLISIONES)
 // ------------------------------------------------------------
 
+/**
+ * @brief Procesa la exploración, lectura de controles de movimiento, colisiones y detección de interacciones.
+ *
+ * Flujo:
+ * 1. Alterna el minimapa al presionar `M`.
+ * 2. Lee teclas WASD/Flechas en el controlador y calcula el desplazamiento deseado en `Player`.
+ * 3. Evalúa colisiones independientes en X e Y contra el `TileMap` y personajes sólidos (`NPC`).
+ * 4. Actualiza la posición de la cámara centrada en el héroe con clamping.
+ * 5. Escanea NPCs en radio de interacción (46 px). Si el usuario presiona `E`, inicia el diálogo.
+ * 6. Actualiza la IA de enemigos y verifica si alguno hace contacto físico con el jugador para iniciar combate.
+ */
 void Game::UpdateMap(float dt) {
     if (IsKeyPressed(KEY_M)) {
         showMinimap = !showMinimap;
@@ -347,14 +444,14 @@ void Game::UpdateMap(float dt) {
         mapCooldown -= dt;
     }
 
-    // Lectura de entrada del jugador en el controlador (MVC)
+    // Lectura de entrada de hardware centralizada en el Controlador (MVC)
     Vector2 inputDir{ 0.0f, 0.0f };
     if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))    inputDir.y -= 1.0f;
     if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))  inputDir.y += 1.0f;
     if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))  inputDir.x -= 1.0f;
     if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) inputDir.x += 1.0f;
 
-    // Desplazamiento y orientacion del jugador
+    // Desplazamiento y orientación del jugador
     Vector2 m = player.GetDesiredMove(inputDir, dt);
     player.moving = (m.x != 0.0f || m.y != 0.0f);
     if (player.moving) {
@@ -365,7 +462,7 @@ void Game::UpdateMap(float dt) {
         player.animTimer = 0.0f;
     }
 
-    // Movimiento en X con resolucion de colisiones contra tiles y personajes fisicos
+    // Movimiento en X con resolución de colisiones contra tiles y personajes físicos
     Rectangle testX = player.body;
     testX.x += m.x;
     bool blockedX = map.IsBlocked(testX);
@@ -379,7 +476,7 @@ void Game::UpdateMap(float dt) {
     }
     if (!blockedX) player.body.x = testX.x;
 
-    // Movimiento en Y con resolucion de colisiones contra tiles y personajes fisicos
+    // Movimiento en Y con resolución de colisiones contra tiles y personajes físicos
     Rectangle testY = player.body;
     testY.y += m.y;
     bool blockedY = map.IsBlocked(testY);
@@ -393,10 +490,10 @@ void Game::UpdateMap(float dt) {
     }
     if (!blockedY) player.body.y = testY.y;
 
-    // Actualiza la posicion de la camara de seguimiento
+    // Actualiza la posición de la cámara de seguimiento con clamping
     UpdateCamera();
 
-    // Deteccion determinista del elemento interactuable mas cercano (radio 46 px)
+    // Detección determinista del elemento interactuable más cercano (radio 46 px)
     nearbyNpc = nullptr;
     float minDistance = 46.0f;
     const Vector2 pc = player.Center();
@@ -416,12 +513,12 @@ void Game::UpdateMap(float dt) {
         return;
     }
 
-    // Actualiza la IA simple de los enemigos.
+    // Actualiza la IA simple de los enemigos
     for (Enemy& enemy : enemies) {
         enemy.UpdateAI(dt, player.Center(), map);
     }
 
-    // Tocar a un enemigo inicia el combate.
+    // Contacto físico con un enemigo inicia combate por turnos
     if (mapCooldown <= 0.0f) {
         for (Enemy& enemy : enemies) {
             if (!enemy.defeated &&
@@ -434,13 +531,17 @@ void Game::UpdateMap(float dt) {
 }
 
 // ------------------------------------------------------------
-// DIALOGOS E INTERACCION CON NPCS
+// DIÁLOGOS E INTERACCIÓN CON NPCS
 // ------------------------------------------------------------
 
+/**
+ * @brief Inicia una conversación activa con un NPC o la lectura de un cartel.
+ *
+ * Evalúa el progreso del juego consultando el estado de compuertas y jefe en el modelo.
+ */
 void Game::StartDialogue(const NPC& npc) {
     activeNpc = &npc;
 
-    // Evaluacion de progreso consultando la fuente de verdad existente
     const bool gate1Open = (map.At(28, 14) == 'p');
     const bool gate2Open = (map.At(39, 14) == 'p');
     bool bossDefeated = false;
@@ -454,10 +555,18 @@ void Game::StartDialogue(const NPC& npc) {
     currentDialogue = npc.GetDialogue(gate1Open, gate2Open, bossDefeated);
     dialogueIndex = 0;
     isDialogueConfirmation = (npc.type == NPCType::HEALER);
-    dialogueChoice = 0; // Por defecto: Si
+    dialogueChoice = 0; // Por defecto: Sí
     state = GameState::DIALOGUE;
 }
 
+/**
+ * @brief Gestiona el avance de texto y la respuesta a preguntas de confirmación.
+ *
+ * En el caso de la Curandera Elena:
+ * - Si el jugador confirma (Sí), ejecuta `player.FullRestore()`.
+ * - Aplica la regla anti-acumulación de pociones: si posee menos de 2 pociones,
+ *   las reabastece a exactamente 2; si ya poseía 2 o más, no altera el inventario.
+ */
 void Game::UpdateDialogue() {
     if (isDialogueConfirmation) {
         if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
@@ -512,6 +621,7 @@ void Game::UpdateDialogue() {
         }
     }
     else {
+        // Avance de página estándar
         if (IsKeyPressed(KEY_E) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             dialogueIndex++;
             if (dialogueIndex >= static_cast<int>(currentDialogue.size())) {
@@ -524,6 +634,9 @@ void Game::UpdateDialogue() {
     }
 }
 
+/**
+ * @brief Cierra el cuadro de diálogo y devuelve el control al modo exploración.
+ */
 void Game::EndDialogue() {
     activeNpc = nullptr;
     dialogueIndex = 0;
@@ -533,9 +646,12 @@ void Game::EndDialogue() {
 }
 
 // ------------------------------------------------------------
-// COMBATE
+// COMBATE POR TURNOS
 // ------------------------------------------------------------
 
+/**
+ * @brief Inicia un encuentro de combate por turnos contra el enemigo especificado.
+ */
 void Game::StartCombat(Enemy* enemy) {
     if (enemy == nullptr) {
         return;
@@ -557,14 +673,19 @@ void Game::StartCombat(Enemy* enemy) {
     AddLog("Que hara " + player.name + "?");
 }
 
+/**
+ * @brief Añade una línea al registro de combate, manteniendo un máximo de 10 mensajes.
+ */
 void Game::AddLog(const std::string& msg) {
     combatLog.push_back(msg);
-
     while (combatLog.size() > 10) {
         combatLog.pop_front();
     }
 }
 
+/**
+ * @brief Máquina de sub-estados para el combate por turnos (Turno Jugador, Espera Enemigo, Espera Fin).
+ */
 void Game::UpdateCombat(float dt) {
     if (currentEnemy != nullptr) {
         combatPres.Update(dt, player, *currentEnemy);
@@ -572,8 +693,14 @@ void Game::UpdateCombat(float dt) {
 
     switch (phase) {
     case CombatPhase::PLAYER_TURN: {
-        // Menu 2 x 2:
-        // 0 Atacar, 1 Habilidad, 2 Pocion, 3 Huir.
+        // Navegación en grilla 2x2 mediante álgebra booleana (XOR bitwise):
+        // Distribución:
+        // [0: ATACAR (00b)]      [1: HABILIDAD (01b)]
+        // [2: POCION (10b)]      [3: HUIR (11b)]
+        // - Movimiento horizontal (Izquierda / Derecha o A / D):
+        //   selectedButton ^= 1 invierte el bit 0: alternando entre 0 <-> 1 y entre 2 <-> 3.
+        // - Movimiento vertical (Arriba / Abajo o W / S):
+        //   selectedButton ^= 2 invierte el bit 1: alternando entre 0 <-> 2 y entre 1 <-> 3.
         if (IsKeyPressed(KEY_RIGHT) ||
             IsKeyPressed(KEY_LEFT) ||
             IsKeyPressed(KEY_D) ||
@@ -605,7 +732,6 @@ void Game::UpdateCombat(float dt) {
         if (action != PlayerAction::NONE) {
             ExecutePlayerAction(action);
         }
-
         break;
     }
 
@@ -625,6 +751,9 @@ void Game::UpdateCombat(float dt) {
     }
 }
 
+/**
+ * @brief Ejecuta el comando seleccionado por el jugador (Atacar, Habilidad, Poción, Huir).
+ */
 void Game::ExecutePlayerAction(PlayerAction action) {
     if (currentEnemy == nullptr) {
         return;
@@ -719,6 +848,9 @@ void Game::ExecutePlayerAction(PlayerAction action) {
     }
 }
 
+/**
+ * @brief Ejecuta el contraataque del enemigo contra el héroe.
+ */
 void Game::EnemyTurn() {
     if (currentEnemy == nullptr) {
         return;
@@ -737,6 +869,13 @@ void Game::EnemyTurn() {
     }
 }
 
+/**
+ * @brief Comprueba condiciones de victoria o derrota al concluir un ataque.
+ *
+ * Si el jugador vence:
+ * - Acredita los puntos de EXP del enemigo llamando a `player.GainExp()`.
+ * - Informa si se produjeron subidas de nivel y reporta las ganancias de estadísticas en el log.
+ */
 void Game::CheckCombatEnd() {
     if (!player.IsAlive()) {
         result = CombatResult::PLAYER_LOST;
@@ -774,6 +913,13 @@ void Game::CheckCombatEnd() {
     }
 }
 
+/**
+ * @brief Aplica las consecuencias definitivas del combate y realiza la transición de estado.
+ *
+ * - Si ganó: marca al enemigo como derrotado, abre compuertas asociadas y si es jefe transiciona a `VICTORY`.
+ * - Si perdió: transiciona a `GAME_OVER`.
+ * - Si huyó: empuja al héroe 64 píxeles en dirección opuesta al enemigo y otorga 2 segundos de inmunidad.
+ */
 void Game::FinishCombat() {
     switch (result) {
     case CombatResult::PLAYER_WON:
@@ -791,8 +937,7 @@ void Game::FinishCombat() {
             }
         }
 
-        // En v2: la EXP y subida de nivel ya ocurrieron en CheckCombatEnd.
-        // Se mantiene la persistencia estricta de HP y MP (sin restauracion automatica).
+        // Persistencia estricta: conserva HP y MP resultantes de la pelea
         state = GameState::MAP;
         mapCooldown = 0.5f;
         break;
@@ -831,9 +976,12 @@ void Game::FinishCombat() {
 }
 
 // ------------------------------------------------------------
-// DIBUJO
+// RENDERIZADO GENERAL Y PANTALLAS FINALES
 // ------------------------------------------------------------
 
+/**
+ * @brief Delega el renderizado de la escena visual a la vista pasiva correspondiente.
+ */
 void Game::DrawScene(GameState scene) {
     const Vector2 mouse = GetMousePosition();
 
@@ -860,26 +1008,22 @@ void Game::DrawScene(GameState scene) {
 
     case GameState::MAP:
         mapView.DrawWorld(map, player, enemies, npcs, camera, nearbyNpc);
-
         if (showMinimap) {
             mapView.DrawMinimap(map, player, enemies, camera);
         }
-
         mapView.DrawHUD(player);
         break;
 
     case GameState::DIALOGUE:
         mapView.DrawWorld(map, player, enemies, npcs, camera, nullptr);
-
         if (showMinimap) {
             mapView.DrawMinimap(map, player, enemies, camera);
         }
-
         mapView.DrawHUD(player);
 
         if (activeNpc != nullptr) {
-            const Vector2 mouse = GetMousePosition();
-            const int hovered = isDialogueConfirmation ? dialogueView.GetHoveredChoice(mouse) : -1;
+            const Vector2 mousePos = GetMousePosition();
+            const int hovered = isDialogueConfirmation ? dialogueView.GetHoveredChoice(mousePos) : -1;
             dialogueView.Draw(*activeNpc, currentDialogue, dialogueIndex, isDialogueConfirmation, dialogueChoice, hovered);
         }
         break;
@@ -916,11 +1060,15 @@ void Game::DrawScene(GameState scene) {
     }
 }
 
+/**
+ * @brief Ciclo de dibujado: inicia `BeginDrawing`, limpia fondo, renderiza escena y finaliza `EndDrawing`.
+ */
 void Game::Draw() {
     BeginDrawing();
     ClearBackground(BLACK);
 
     if (state == GameState::PAUSED) {
+        // Dibuja la escena de fondo congelada antes de superponer la pausa
         DrawScene(prevState);
         mapView.DrawPause(pauseSel);
         if (confirmExit) {
@@ -934,6 +1082,9 @@ void Game::Draw() {
     EndDrawing();
 }
 
+/**
+ * @brief Renderiza pantallas de desenlace (Game Over o Victoria).
+ */
 void Game::DrawEndScreen(const char* title, Color c) const {
     DrawRectangle(0, 0, 960, 540, Fade(BLACK, 0.7f));
     const int titleWidth = MeasureText(title, 60);
@@ -944,6 +1095,9 @@ void Game::DrawEndScreen(const char* title, Color c) const {
     DrawText(sub, (960 - subWidth) / 2, 290, 20, RAYWHITE);
 }
 
+/**
+ * @brief Renderiza el cuadro de diálogo de confirmación para salir a la pantalla de título.
+ */
 void Game::DrawConfirmExit() const {
     DrawRectangle(0, 0, 960, 540, Fade(BLACK, 0.75f));
 

@@ -1,7 +1,21 @@
+﻿/**
+ * @file TitleView.cpp
+ * @brief Implementación del renderizado de las pantallas de Título, Selección de Clase y Controles.
+ *
+ * Capa de Arquitectura: Vista (View) - Menús y Selección de Héroe.
+ *
+ * Propósito y Responsabilidades:
+ * - Dibujar la pantalla de título con fondos degradados y botones interactivos.
+ * - Mostrar de manera didáctica la opción "Continuar" deshabilitada indicando que requiere guardado.
+ * - Renderizar las tarjetas con avatar procedimental, atributos y habilidades de los tres héroes.
+ * - Ofrecer detección geométrica para interacción mediante teclado y ratón.
+ */
+
 #include "TitleView.h"
-#include "Player.h"
+#include "../Modelo/Player.h"
 #include "PixelArt.h"
 
+/// Etiquetas de los 4 botones del menú principal.
 static const char* TITLE_LABELS[4] = {
     "Nueva partida",
     "Continuar",
@@ -9,6 +23,12 @@ static const char* TITLE_LABELS[4] = {
     "Salir"
 };
 
+/**
+ * @brief Constructor que calcula las dimensiones y posiciones estáticas de botones y tarjetas.
+ *
+ * - Botones de título: Centrados en X=330 px con ancho de 300 px y espaciado vertical de 62 px.
+ * - Tarjetas de clase: 3 columnas distribuidas uniformemente entre X=65 px y X=895 px.
+ */
 TitleView::TitleView() {
     for (int i = 0; i < 4; ++i) {
         titleButtons[i] = { 330.0f, 215.0f + i * 62.0f, 300.0f, 48.0f };
@@ -18,31 +38,46 @@ TitleView::TitleView() {
     }
 }
 
+/**
+ * @brief Función auxiliar interna para dibujar paneles con fondo sólido y borde perimetral.
+ */
 void TitleView::DrawDecoratedFrame(Rectangle r, Color border, Color fill) const {
     DrawRectangleRec(r, fill);
     DrawRectangleLinesEx(r, 2.0f, border);
 }
 
+/**
+ * @brief Dibuja la pantalla de título completa en resolución nativa 960x540.
+ *
+ * Elementos dibujados:
+ * 1. Fondo degradado vertical azul noche ({ 14, 20, 32 } a { 26, 36, 56 }).
+ * 2. Marco perimetral dorado elegante.
+ * 3. Título principal "Mini Aventura RPG" con tipografía de 48 px y sombra proyectada.
+ * 4. Subtítulo "Versión 2" en 20 px.
+ * 5. Los 4 botones de acción con resaltado dorado al estar seleccionados o sobrevolados.
+ * 6. Opción "Continuar": visible pero con indicación pedagógica "(Disponible al implementar guardado)".
+ * 7. Leyenda de ayuda en el pie de pantalla.
+ */
 void TitleView::DrawTitle(int selected, bool continueAvailable, int hovered) const {
-    // Fondo tematico azul noche
+    // 1. Fondo temático azul noche
     DrawRectangleGradientV(0, 0, 960, 540, { 14, 20, 32, 255 }, { 26, 36, 56, 255 });
 
-    // Bordes exteriores dorados sutiles
+    // 2. Bordes exteriores dorados sutiles
     DrawRectangleLinesEx({ 18.0f, 18.0f, 924.0f, 504.0f }, 2.0f, { 190, 160, 90, 160 });
     DrawRectangleLinesEx({ 22.0f, 22.0f, 916.0f, 496.0f }, 1.0f, { 130, 110, 60, 90 });
 
-    // Titulo Mini Aventura RPG
+    // 3. Título Mini Aventura RPG con sombra
     const char* mainTitle = "Mini Aventura RPG";
     const int titleW = MeasureText(mainTitle, 48);
     DrawText(mainTitle, (960 - titleW) / 2 + 2, 78, 48, { 10, 10, 15, 200 }); // sombra
     DrawText(mainTitle, (960 - titleW) / 2, 76, 48, GOLD);
 
-    // Subtitulo discreto Version 2
+    // 4. Subtítulo discreto Versión 2
     const char* sub = "Version 2";
     const int subW = MeasureText(sub, 20);
     DrawText(sub, (960 - subW) / 2, 138, 20, { 185, 200, 225, 255 });
 
-    // Botones del menu principal
+    // 5. Botones del menú principal
     for (int i = 0; i < 4; ++i) {
         const Rectangle btn = titleButtons[i];
         const bool isSelected = (i == selected);
@@ -65,6 +100,7 @@ void TitleView::DrawTitle(int selected, bool continueAvailable, int hovered) con
         DrawRectangleRec(btn, bgColor);
         DrawRectangleLinesEx(btn, isHighlighted ? 3.0f : 2.0f, borderColor);
 
+        // Indicador triangular a la izquierda del botón activo
         if (isHighlighted && !isDisabled) {
             DrawTriangle({ btn.x + 14, btn.y + 16 },
                 { btn.x + 14, btn.y + btn.height - 16 },
@@ -73,7 +109,7 @@ void TitleView::DrawTitle(int selected, bool continueAvailable, int hovered) con
         }
 
         if (i == 1 && isDisabled) {
-            // "Continuar" visible pero desactivado con indicacion solicitada
+            // "Continuar" visible pero desactivado con aclaración
             const int lblW = MeasureText(TITLE_LABELS[i], 18);
             DrawText(TITLE_LABELS[i], static_cast<int>(btn.x + (btn.width - lblW) / 2),
                 static_cast<int>(btn.y + 8), 18, txtColor);
@@ -92,12 +128,22 @@ void TitleView::DrawTitle(int selected, bool continueAvailable, int hovered) con
         }
     }
 
-    // Pie de pantalla
+    // 6. Pie de pantalla con atajos
     const char* hint = "[W/S o Flechas] Navegar   |   [ENTER o Clic] Seleccionar";
     const int hintW = MeasureText(hint, 15);
     DrawText(hint, (960 - hintW) / 2, 485, 15, { 160, 175, 195, 255 });
 }
 
+/**
+ * @brief Renderiza la pantalla de selección de héroe con las 3 tarjetas comparativas.
+ *
+ * Presenta con claridad didáctica:
+ * - Avatar PixelArt escalado (escala 5, 60x60 px).
+ * - Valores exactos de Salud (HP), Maná (MP), Ataque (ATK) y Defensa (DEF).
+ * - Nombre de la técnica especial y su coste en MP.
+ * - Probabilidad porcentual explícita de escape en combate.
+ * - Botones de acción "VOLVER" y "COMENZAR".
+ */
 void TitleView::DrawClassSelect(int selectedClass, int hoveredClass, bool backHovered, bool startHovered) const {
     DrawRectangleGradientV(0, 0, 960, 540, { 14, 20, 32, 255 }, { 24, 34, 52, 255 });
     DrawRectangleLinesEx({ 18.0f, 18.0f, 924.0f, 504.0f }, 2.0f, { 190, 160, 90, 160 });
@@ -110,7 +156,6 @@ void TitleView::DrawClassSelect(int selectedClass, int hoveredClass, bool backHo
         const Rectangle card = classCards[i];
         const bool isSelected = (i == selectedClass);
         const bool isHovered = (i == hoveredClass);
-        const bool highlight = isSelected || isHovered;
 
         const auto& data = GetHeroClassData(static_cast<HeroClass>(i));
 
@@ -125,7 +170,7 @@ void TitleView::DrawClassSelect(int selectedClass, int hoveredClass, bool backHo
         DrawRectangleRec(card, cardBg);
         DrawRectangleLinesEx(card, isSelected ? 4.0f : 2.0f, cardBorder);
 
-        // Nombre de clase
+        // Nombre del arquetipo
         const int nw = MeasureText(data.name, 22);
         DrawText(data.name, static_cast<int>(card.x + (card.width - nw) / 2),
             static_cast<int>(card.y + 14), 22, isSelected ? GOLD : RAYWHITE);
@@ -135,11 +180,11 @@ void TitleView::DrawClassSelect(int selectedClass, int hoveredClass, bool backHo
         float spriteY = card.y + 42.0f;
         DrawPixelArt(data.artId, spriteX, spriteY, 5, data.bodyColor, data.lightColor);
 
-        // Descripcion de una frase
+        // Resumen descriptivo
         int descY = static_cast<int>(card.y + 110);
         DrawText(data.description, static_cast<int>(card.x + 14), descY, 11, { 185, 200, 220, 255 });
 
-        // Cuadro de estadisticas: HP, MP, Ataque, Defensa
+        // Cuadro de estadísticas: HP, MP, Ataque, Defensa
         int statsY = descY + 28;
         DrawRectangle(static_cast<int>(card.x + 14), statsY, static_cast<int>(card.width - 28), 92,
             Color{ 14, 18, 28, 200 });
@@ -157,13 +202,13 @@ void TitleView::DrawClassSelect(int selectedClass, int hoveredClass, bool backHo
             static_cast<int>(card.x + 14), skillY, 13, GOLD);
         DrawText(data.skillEffect, static_cast<int>(card.x + 14), skillY + 18, 12, RAYWHITE);
 
-        // Probabilidad de huida explicita
+        // Probabilidad de huida explícita
         int fleeY = skillY + 40;
         DrawText(TextFormat("Probabilidad de huida: %d%%", data.fleeChance),
             static_cast<int>(card.x + 14), fleeY, 13,
             data.fleeChance > 50 ? Color{ 110, 230, 160, 255 } : Color{ 190, 200, 215, 255 });
 
-        // Indicador de seleccion al pie de la tarjeta
+        // Insignia de confirmación visual si está seleccionada
         if (isSelected) {
             Rectangle selBadge{ card.x + 35, card.y + card.height - 30, card.width - 70, 22 };
             DrawRectangleRec(selBadge, GOLD);
@@ -174,7 +219,7 @@ void TitleView::DrawClassSelect(int selectedClass, int hoveredClass, bool backHo
         }
     }
 
-    // Boton VOLVER
+    // Botón VOLVER
     const Rectangle backBtn = GetBackButtonRect(GameState::CLASS_SELECT);
     DrawRectangleRec(backBtn, backHovered ? Color{ 200, 60, 60, 255 } : Color{ 40, 50, 70, 230 });
     DrawRectangleLinesEx(backBtn, 2.0f, backHovered ? RAYWHITE : Color{ 130, 145, 170, 255 });
@@ -183,7 +228,7 @@ void TitleView::DrawClassSelect(int selectedClass, int hoveredClass, bool backHo
     DrawText(bTxt, static_cast<int>(backBtn.x + (backBtn.width - bw) / 2),
         static_cast<int>(backBtn.y + 10), 16, RAYWHITE);
 
-    // Boton COMENZAR para confirmar la seleccion
+    // Botón COMENZAR para confirmar la selección
     const Rectangle startBtn = GetStartButtonRect();
     DrawRectangleRec(startBtn, startHovered ? Color{ 235, 195, 65, 255 } : Color{ 195, 155, 45, 255 });
     DrawRectangleLinesEx(startBtn, 2.0f, startHovered ? RAYWHITE : GOLD);
@@ -192,12 +237,15 @@ void TitleView::DrawClassSelect(int selectedClass, int hoveredClass, bool backHo
     DrawText(stTxt, static_cast<int>(startBtn.x + (startBtn.width - stw) / 2),
         static_cast<int>(startBtn.y + 10), 18, BLACK);
 
-    // Ayuda
+    // Ayuda de navegación
     const char* hint = "[A/D o Flechas] Cambiar heroe   |   [ENTER o Comenzar] Confirmar   |   [ESC] Volver";
     int hw = MeasureText(hint, 15);
     DrawText(hint, (960 - hw) / 2, 510, 15, { 160, 175, 195, 255 });
 }
 
+/**
+ * @brief Renderiza la pantalla de Controles con las asignaciones reales de teclado y ratón.
+ */
 void TitleView::DrawControls(bool backHovered) const {
     DrawRectangleGradientV(0, 0, 960, 540, { 14, 20, 32, 255 }, { 24, 34, 52, 255 });
     DrawRectangleLinesEx({ 18.0f, 18.0f, 924.0f, 504.0f }, 2.0f, { 190, 160, 90, 160 });
@@ -209,7 +257,6 @@ void TitleView::DrawControls(bool backHovered) const {
     Rectangle panel{ 140.0f, 105.0f, 680.0f, 340.0f };
     DrawDecoratedFrame(panel, { 130, 155, 190, 200 }, { 22, 30, 46, 240 });
 
-    // Controles que ya funcionan realmente en el juego
     struct ControlItem {
         const char* key;
         const char* desc;
@@ -234,7 +281,7 @@ void TitleView::DrawControls(bool backHovered) const {
         y += 48;
     }
 
-    // Boton Volver
+    // Botón Volver
     const Rectangle backBtn = GetBackButtonRect(GameState::CONTROLS);
     DrawRectangleRec(backBtn, backHovered ? Color{ 200, 60, 60, 255 } : Color{ 40, 50, 70, 230 });
     DrawRectangleLinesEx(backBtn, 2.0f, backHovered ? RAYWHITE : Color{ 130, 145, 170, 255 });
@@ -288,7 +335,6 @@ Rectangle TitleView::GetBackButtonRect(GameState state) const {
     if (state == GameState::CLASS_SELECT) {
         return { 65.0f, 470.0f, 130.0f, 38.0f };
     }
-    // CONTROLS
     return { 415.0f, 460.0f, 130.0f, 38.0f };
 }
 

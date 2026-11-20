@@ -1,3 +1,16 @@
+﻿/**
+ * @file CombatPresentation.cpp
+ * @brief Implementación de las animaciones procedimentales, interpolación de barras y sacudida de pantalla.
+ *
+ * Capa de Arquitectura: Vista (View) - Efectos Procedurales de Combate.
+ *
+ * Propósito y Responsabilidades:
+ * - Implementar la aproximación suave de barras hacia los valores reales del modelo mediante velocidad constante.
+ * - Simular la embestida física atacante mediante funciones sinusoidales (`sin(p * PI)`).
+ * - Controlar la duración y atenuación de la sacudida de pantalla (*screen shake*) en impactos contundentes.
+ * - Desplazar y desvanecer textos numéricos flotantes a lo largo del eje vertical Y.
+ */
+
 #include "CombatPresentation.h"
 #include <algorithm>
 #include <cmath>
@@ -6,6 +19,9 @@ CombatPresentation::CombatPresentation() {
     Reset();
 }
 
+/**
+ * @brief Reinicia a cero todas las variables de estado visual y vacía el contenedor de textos flotantes.
+ */
 void CombatPresentation::Reset() {
     visualPlayerHp = 0.0f;
     visualPlayerMp = 0.0f;
@@ -26,8 +42,18 @@ void CombatPresentation::Reset() {
     floatingTexts.clear();
 }
 
+/**
+ * @brief Prepara el escenario de batalla y sincroniza inmediatamente los valores de las barras.
+ *
+ * Determina el bioma según la columna del mapa:
+ * - Aldea: cols < 17.
+ * - Pradera: cols 17..28.
+ * - Bosque: cols 29..39.
+ * - Ruinas: cols >= 40.
+ *
+ * Igualar `visualPlayerHp = player.hp` evita que la barra se anime desde 0 al entrar al combate.
+ */
 void CombatPresentation::OnCombatStart(const Player& player, const Enemy& enemy, int mapCol) {
-    // Determinacion del bioma segun la columna del mapa donde inicio el combate
     if (mapCol < 17) {
         biome = CombatBiome::VILLAGE;
     }
@@ -41,7 +67,7 @@ void CombatPresentation::OnCombatStart(const Player& player, const Enemy& enemy,
         biome = CombatBiome::RUINS;
     }
 
-    // Inicializacion inmediata de barras animadas para evitar animaciones desde 0
+    // Inicialización inmediata de barras animadas
     visualPlayerHp = static_cast<float>(player.hp);
     visualPlayerMp = static_cast<float>(player.mp);
     visualEnemyHp = static_cast<float>(enemy.hp);
@@ -61,10 +87,20 @@ void CombatPresentation::OnCombatStart(const Player& player, const Enemy& enemy,
     floatingTexts.clear();
 }
 
+/**
+ * @brief Actualiza la física visual de cada elemento en combate con el tiempo delta.
+ *
+ * Procesos ejecutados:
+ * 1. Incrementa `presentationTime` (tiempo interno desacoplado del tiempo del SO).
+ * 2. Interpola barras de vida a una tasa fija de 160 pts/segundo y barras de maná a 80 pts/segundo.
+ * 3. Anima la embestida (*lunge*) mediante curva senoidal para un avance rápido y retroceso elástico.
+ * 4. Aplica atenuación al destello de impacto y sacudida de pantalla con dispersión aleatoria.
+ * 5. Mueve los textos flotantes hacia arriba (-35 px/s) y elimina los que agotan su temporizador.
+ */
 void CombatPresentation::Update(float dt, const Player& player, const Enemy& enemy) {
     presentationTime += dt;
 
-    // Interpolacion suave de barras hacia los valores reales del modelo
+    // 1. Interpolación suave de barras hacia los valores reales del modelo
     const float hpSpeed = 160.0f;
     if (visualPlayerHp < player.hp) {
         visualPlayerHp = std::min(visualPlayerHp + hpSpeed * dt, static_cast<float>(player.hp));
@@ -88,7 +124,7 @@ void CombatPresentation::Update(float dt, const Player& player, const Enemy& ene
         visualPlayerMp = std::max(visualPlayerMp - mpSpeed * dt, static_cast<float>(player.mp));
     }
 
-    // Desplazamiento visual de atacantes (lunge / embestida)
+    // 2. Desplazamiento visual de atacantes (lunge / embestida)
     if (heroLungeTimer > 0.0f) {
         heroLungeTimer -= dt;
         if (heroLungeTimer <= 0.0f) {
@@ -119,7 +155,7 @@ void CombatPresentation::Update(float dt, const Player& player, const Enemy& ene
         enemyLungeOffset = { 0.0f, 0.0f };
     }
 
-    // Destellos de impacto (hit flash)
+    // 3. Destellos de impacto (hit flash)
     if (enemyFlashTimer > 0.0f) {
         enemyFlashTimer = std::max(0.0f, enemyFlashTimer - dt);
     }
@@ -127,7 +163,7 @@ void CombatPresentation::Update(float dt, const Player& player, const Enemy& ene
         playerFlashTimer = std::max(0.0f, playerFlashTimer - dt);
     }
 
-    // Sacudida de pantalla (screen shake)
+    // 4. Sacudida de pantalla (screen shake)
     if (screenShakeTimer > 0.0f) {
         screenShakeTimer = std::max(0.0f, screenShakeTimer - dt);
         const float factor = std::clamp(screenShakeTimer / 0.3f, 0.0f, 1.0f);
@@ -139,7 +175,7 @@ void CombatPresentation::Update(float dt, const Player& player, const Enemy& ene
         shakeOffset = { 0.0f, 0.0f };
     }
 
-    // Temporizadores de efectos
+    // 5. Temporizadores de efectos
     if (skillEffectTimer > 0.0f) {
         skillEffectTimer = std::max(0.0f, skillEffectTimer - dt);
     }
@@ -147,7 +183,7 @@ void CombatPresentation::Update(float dt, const Player& player, const Enemy& ene
         healSparkleTimer = std::max(0.0f, healSparkleTimer - dt);
     }
 
-    // Desplazamiento ascendente y desvanecimiento de textos flotantes
+    // 6. Desplazamiento ascendente y desvanecimiento de textos flotantes
     for (auto it = floatingTexts.begin(); it != floatingTexts.end(); ) {
         it->timer -= dt;
         it->pos.y -= 35.0f * dt;
@@ -160,6 +196,11 @@ void CombatPresentation::Update(float dt, const Player& player, const Enemy& ene
     }
 }
 
+/**
+ * @brief Dispara los efectos del ataque físico básico del héroe.
+ *
+ * Produce: embestida del héroe (0.25s), destello del enemigo (0.25s) y texto flotante rojo.
+ */
 void CombatPresentation::TriggerPlayerAttack(int dmg) {
     heroLungeTimer = 0.25f;
     enemyFlashTimer = 0.25f;
@@ -168,6 +209,12 @@ void CombatPresentation::TriggerPlayerAttack(int dmg) {
         { 255, 90, 80, 255 }, 26);
 }
 
+/**
+ * @brief Dispara los efectos de técnica especial de clase.
+ *
+ * Produce: embestida prolongada (0.28s), destello intenso (0.35s), sacudida de pantalla fuerte (7.5f)
+ * y texto numérico crítico dorado ("-XX CRITICO!").
+ */
 void CombatPresentation::TriggerPlayerSkill(HeroClass heroClass, int dmg) {
     heroLungeTimer = 0.28f;
     enemyFlashTimer = 0.35f;
@@ -179,6 +226,11 @@ void CombatPresentation::TriggerPlayerSkill(HeroClass heroClass, int dmg) {
         { 255, 220, 80, 255 }, 28);
 }
 
+/**
+ * @brief Dispara los efectos visuales de beber una poción.
+ *
+ * Produce: lluvia ascendente de partículas verdes y doradas (0.5s) y texto flotante verde sobre el héroe.
+ */
 void CombatPresentation::TriggerPlayerHeal(int healedHp) {
     healSparkleTimer = 0.5f;
     AddFloatingText("+" + std::to_string(healedHp) + " HP",
@@ -186,6 +238,12 @@ void CombatPresentation::TriggerPlayerHeal(int healedHp) {
         { 100, 245, 130, 255 }, 26);
 }
 
+/**
+ * @brief Dispara los efectos del contraataque enemigo.
+ *
+ * Produce: embestida del enemigo hacia la izquierda, destello perimetral rojo sobre el héroe,
+ * sacudida de pantalla si es jefe o daño >= 18 y texto numérico de impacto.
+ */
 void CombatPresentation::TriggerEnemyAttack(bool isBoss, int dmg) {
     enemyLungeTimer = 0.25f;
     playerFlashTimer = 0.28f;
@@ -197,11 +255,17 @@ void CombatPresentation::TriggerEnemyAttack(bool isBoss, int dmg) {
         { 255, 95, 85, 255 }, 26);
 }
 
+/**
+ * @brief Activa la oscilación de pantalla durante una duración e intensidad determinadas.
+ */
 void CombatPresentation::TriggerScreenShake(float duration, float intensity) {
     screenShakeTimer = duration;
     screenShakeIntensity = intensity;
 }
 
+/**
+ * @brief Registra un nuevo texto flotante en la escena.
+ */
 void CombatPresentation::AddFloatingText(const std::string& text, Vector2 pos, Color col, int fontSize) {
     FloatingCombatText ft;
     ft.text = text;

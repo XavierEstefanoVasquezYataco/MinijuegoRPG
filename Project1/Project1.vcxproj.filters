@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Archivos de origen">
@@ -27,73 +27,73 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="GameState.h">
+    <ClInclude Include="Modelo\GameState.h">
       <Filter>Modelo</Filter>
     </ClInclude>
-    <ClInclude Include="Player.h">
+    <ClInclude Include="Modelo\Player.h">
       <Filter>Modelo</Filter>
     </ClInclude>
-    <ClInclude Include="CombatUI.h">
+    <ClInclude Include="Modelo\TileMap.h">
+      <Filter>Modelo</Filter>
+    </ClInclude>
+    <ClInclude Include="Modelo\NPC.h">
+      <Filter>Modelo</Filter>
+    </ClInclude>
+    <ClInclude Include="Vistas\CombatUI.h">
       <Filter>Vistas</Filter>
     </ClInclude>
-    <ClInclude Include="CombatPresentation.h">
+    <ClInclude Include="Vistas\CombatPresentation.h">
       <Filter>Vistas</Filter>
     </ClInclude>
-    <ClInclude Include="Game.h">
+    <ClInclude Include="Vistas\MapView.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
+    <ClInclude Include="Vistas\PixelArt.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
+    <ClInclude Include="Vistas\TitleView.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
+    <ClInclude Include="Vistas\DialogueView.h">
+      <Filter>Vistas</Filter>
+    </ClInclude>
+    <ClInclude Include="Controladores\Game.h">
       <Filter>Controladores</Filter>
-    </ClInclude>
-    <ClInclude Include="TileMap.h">
-      <Filter>Modelo</Filter>
-    </ClInclude>
-    <ClInclude Include="MapView.h">
-      <Filter>Vistas</Filter>
-    </ClInclude>
-    <ClInclude Include="PixelArt.h">
-      <Filter>Vistas</Filter>
-    </ClInclude>
-    <ClInclude Include="TitleView.h">
-      <Filter>Vistas</Filter>
-    </ClInclude>
-    <ClInclude Include="DialogueView.h">
-      <Filter>Vistas</Filter>
-    </ClInclude>
-    <ClInclude Include="NPC.h">
-      <Filter>Modelo</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Player.cpp">
-      <Filter>Modelo</Filter>
-    </ClCompile>
-    <ClCompile Include="CombatUI.cpp">
-      <Filter>Vistas</Filter>
-    </ClCompile>
-    <ClCompile Include="CombatPresentation.cpp">
-      <Filter>Vistas</Filter>
-    </ClCompile>
-    <ClCompile Include="Game.cpp">
-      <Filter>Controladores</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
-    <ClCompile Include="TileMap.cpp">
+    <ClCompile Include="Modelo\Player.cpp">
       <Filter>Modelo</Filter>
     </ClCompile>
-    <ClCompile Include="MapView.cpp">
-      <Filter>Vistas</Filter>
-    </ClCompile>
-    <ClCompile Include="PixelArt.cpp">
-      <Filter>Vistas</Filter>
-    </ClCompile>
-    <ClCompile Include="TitleView.cpp">
-      <Filter>Vistas</Filter>
-    </ClCompile>
-    <ClCompile Include="DialogueView.cpp">
-      <Filter>Vistas</Filter>
-    </ClCompile>
-    <ClCompile Include="NPC.cpp">
+    <ClCompile Include="Modelo\TileMap.cpp">
       <Filter>Modelo</Filter>
+    </ClCompile>
+    <ClCompile Include="Modelo\NPC.cpp">
+      <Filter>Modelo</Filter>
+    </ClCompile>
+    <ClCompile Include="Vistas\CombatUI.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="Vistas\CombatPresentation.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="Vistas\MapView.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="Vistas\PixelArt.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="Vistas\TitleView.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="Vistas\DialogueView.cpp">
+      <Filter>Vistas</Filter>
+    </ClCompile>
+    <ClCompile Include="Controladores\Game.cpp">
+      <Filter>Controladores</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

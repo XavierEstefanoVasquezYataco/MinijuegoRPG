@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -77,6 +77,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -95,6 +96,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -111,6 +113,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -129,6 +132,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -142,30 +146,30 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CombatUI.h" />
-    <ClInclude Include="CombatPresentation.h" />
-    <ClInclude Include="Game.h" />
-    <ClInclude Include="GameState.h" />
-    <ClInclude Include="MapView.h" />
-    <ClInclude Include="PixelArt.h" />
-    <ClInclude Include="Player.h" />
-    <ClInclude Include="TileMap.h" />
-    <ClInclude Include="TitleView.h" />
-    <ClInclude Include="DialogueView.h" />
-    <ClInclude Include="NPC.h" />
+    <ClInclude Include="Modelo\GameState.h" />
+    <ClInclude Include="Modelo\Player.h" />
+    <ClInclude Include="Modelo\TileMap.h" />
+    <ClInclude Include="Modelo\NPC.h" />
+    <ClInclude Include="Vistas\CombatUI.h" />
+    <ClInclude Include="Vistas\CombatPresentation.h" />
+    <ClInclude Include="Vistas\MapView.h" />
+    <ClInclude Include="Vistas\PixelArt.h" />
+    <ClInclude Include="Vistas\TitleView.h" />
+    <ClInclude Include="Vistas\DialogueView.h" />
+    <ClInclude Include="Controladores\Game.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CombatUI.cpp" />
-    <ClCompile Include="CombatPresentation.cpp" />
-    <ClCompile Include="Game.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MapView.cpp" />
-    <ClCompile Include="PixelArt.cpp" />
-    <ClCompile Include="Player.cpp" />
-    <ClCompile Include="TileMap.cpp" />
-    <ClCompile Include="TitleView.cpp" />
-    <ClCompile Include="DialogueView.cpp" />
-    <ClCompile Include="NPC.cpp" />
+    <ClCompile Include="Modelo\Player.cpp" />
+    <ClCompile Include="Modelo\TileMap.cpp" />
+    <ClCompile Include="Modelo\NPC.cpp" />
+    <ClCompile Include="Vistas\CombatUI.cpp" />
+    <ClCompile Include="Vistas\CombatPresentation.cpp" />
+    <ClCompile Include="Vistas\MapView.cpp" />
+    <ClCompile Include="Vistas\PixelArt.cpp" />
+    <ClCompile Include="Vistas\TitleView.cpp" />
+    <ClCompile Include="Vistas\DialogueView.cpp" />
+    <ClCompile Include="Controladores\Game.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

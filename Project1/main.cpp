@@ -30,7 +30,10 @@
  * @return int Código de salida del sistema operativo (0 para finalización normal).
  */
 int main() {
+    // Crea el controlador que administra los recursos del juego.
     Game game;
+    // Ejecuta el bucle principal hasta que el jugador sale.
     game.Run();
+    // Indica al sistema operativo que la ejecución terminó normalmente.
     return 0;
 }
